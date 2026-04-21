@@ -20,7 +20,7 @@ import {
   type Product,
   type ProductInput,
 } from "@/components/quanty/inventory/types";
-import { seedProducts } from "@/components/quanty/inventory/seed";
+import { useInventoryStore } from "@/stores/inventoryStore";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/inventario")({
