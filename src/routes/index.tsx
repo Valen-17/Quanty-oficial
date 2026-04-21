@@ -9,10 +9,7 @@ import {
   selectInventoryValue,
   useInventoryStore,
 } from "@/stores/inventoryStore";
-
 import { fmtCOP } from "@/lib/format";
-
-const _ignored = 0; void _ignored;
 
 export const Route = createFileRoute("/")({
   head: () => ({
