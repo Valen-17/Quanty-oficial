@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Wallet, Package, ShoppingBag, FileClock, Plus } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMemo } from "react";
+import { Wallet, Package, ShoppingBag, FileClock, Plus, FileText } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { KpiCard } from "@/components/quanty/KpiCard";
 import { RevenueChart } from "@/components/quanty/RevenueChart";
@@ -9,7 +10,13 @@ import {
   selectInventoryValue,
   useInventoryStore,
 } from "@/stores/inventoryStore";
-import { fmtCOP } from "@/lib/format";
+import {
+  quoteStatusLabel,
+  quoteStatusStyles,
+  useQuotesStore,
+} from "@/stores/quotesStore";
+import { fmtCOP, fmtDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,13 +31,6 @@ export const Route = createFileRoute("/")({
   }),
   component: DashboardPage,
 });
-
-const recentQuotes = [
-  { id: "COT-1042", client: "María Restrepo", amount: 1240000, status: "Pendiente" },
-  { id: "COT-1041", client: "Juan Cárdenas", amount: 860000, status: "Aprobada" },
-  { id: "COT-1040", client: "Carolina Mejía", amount: 2150000, status: "Pendiente" },
-  { id: "COT-1039", client: "Luis Tobón", amount: 540000, status: "Enviada" },
-];
 
 function DashboardPage() {
   const inventoryValue = useInventoryStore(selectInventoryValue);
