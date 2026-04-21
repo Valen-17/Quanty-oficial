@@ -214,13 +214,11 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
             <div className="flex min-h-0 flex-col md:col-span-3">
               <div className="space-y-3 border-b border-border p-4">
                 <Field label="Cliente" error={errors.clientName} required>
-                  <input
-                    type="text"
+                  <ClientCombobox
                     value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    maxLength={80}
-                    placeholder="Nombre del cliente"
-                    className={inputCls(!!errors.clientName)}
+                    onChange={setClientName}
+                    onCreateNew={() => setClientModalOpen(true)}
+                    error={!!errors.clientName}
                   />
                 </Field>
                 <Field
