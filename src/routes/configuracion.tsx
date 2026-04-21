@@ -202,9 +202,10 @@ function ConfigPage() {
               )}
               <button
                 onClick={handleSave}
-                className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)]"
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] disabled:opacity-60"
               >
-                <Save className="h-4 w-4" /> Guardar cambios
+                <Save className="h-4 w-4" /> {saving ? "Guardando…" : "Guardar cambios"}
               </button>
             </div>
           </div>
