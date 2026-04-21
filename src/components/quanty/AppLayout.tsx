@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
-import { Menu, Bell, Search } from "lucide-react";
+import { Menu, Bell, Search, LogOut } from "lucide-react";
 import { DesktopSidebar, MobileSidebar } from "./Sidebar";
+import { RequireAuth } from "./RouteGuard";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AppLayoutProps {
   title: string;
@@ -9,8 +11,33 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
+function getInitials(name?: string | null, email?: string | null) {
+  const source = (name && name.trim()) || (email ? email.split("@")[0] : "");
+  if (!source) return "U";
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  const first = parts[0]?.[0] ?? "";
+  const second = parts[1]?.[0] ?? "";
+  return (first + second).toUpperCase() || source[0].toUpperCase();
+}
+
 export function AppLayout({ title, subtitle, actions, children }: AppLayoutProps) {
+  return (
+    <RequireAuth>
+      <AppLayoutInner title={title} subtitle={subtitle} actions={actions}>
+        {children}
+      </AppLayoutInner>
+    </RequireAuth>
+  );
+}
+
+function AppLayoutInner({ title, subtitle, actions, children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const fullName =
+    (user?.user_metadata?.full_name as string | undefined) ?? null;
+  const initials = getInitials(fullName, user?.email);
 
   return (
     <div className="min-h-screen w-full bg-background">
@@ -46,8 +73,43 @@ export function AppLayout({ title, subtitle, actions, children }: AppLayoutProps
               <Bell className="h-5 w-5" />
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
             </button>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[image:var(--gradient-primary)] text-sm font-semibold text-primary-foreground">
-              IA
+
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[image:var(--gradient-primary)] text-sm font-semibold text-primary-foreground transition-transform hover:scale-105"
+                aria-label="Menú de cuenta"
+              >
+                {initials}
+              </button>
+              {menuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-11 z-40 w-60 overflow-hidden rounded-xl border border-border bg-popover shadow-[var(--shadow-card)]">
+                    <div className="border-b border-border px-3 py-3">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {fullName ?? "Mi cuenta"}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {user?.email}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setMenuOpen(false);
+                        await signOut();
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Cerrar sesión
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>

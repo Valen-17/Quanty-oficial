@@ -209,7 +209,7 @@ function ConfigPage() {
               ))}
             </div>
             <p className="mt-3 text-[11px] text-muted-foreground">
-              El modo oscuro estará disponible próximamente.
+              El cambio se aplica al instante. "Sistema" usa la preferencia de tu dispositivo.
             </p>
           </div>
 
