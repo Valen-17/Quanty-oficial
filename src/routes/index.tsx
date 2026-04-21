@@ -173,7 +173,8 @@ function DashboardPage() {
                 {recentQuotes.map((q) => (
                   <tr
                     key={q.id}
-                    className="border-t border-border transition-colors hover:bg-muted/50"
+                    onClick={() => setOpenQuote(q)}
+                    className="cursor-pointer border-t border-border transition-colors hover:bg-muted/50"
                   >
                     <td className="px-5 py-3 font-mono text-xs text-muted-foreground sm:px-6">
                       {q.folio}
