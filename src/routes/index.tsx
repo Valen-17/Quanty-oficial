@@ -21,6 +21,7 @@ import {
 } from "@/stores/quotesStore";
 import { fmtCOP, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { firstName, useProfile } from "@/hooks/useProfile";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,6 +44,8 @@ function DashboardPage() {
   const createQuote = useQuotesStore((s) => s.createQuote);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [openQuote, setOpenQuote] = useState<Quote | null>(null);
+  const { displayName } = useProfile();
+  const greetName = firstName(displayName) || "ahí";
 
   const liveOpenQuote = openQuote ? quotes.find((q) => q.id === openQuote.id) ?? null : null;
 
@@ -69,7 +72,7 @@ function DashboardPage() {
 
   return (
     <AppLayout
-      title="Hola, Isabella 👋"
+      title={`Hola, ${greetName} 👋`}
       subtitle="Este es el resumen de tu negocio en tiempo real."
       actions={
         <>
