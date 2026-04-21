@@ -1,26 +1,185 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  Wallet,
+  Package,
+  ShoppingBag,
+  FileClock,
+  Plus,
+  ArrowUpRight,
+} from "lucide-react";
+import { AppLayout } from "@/components/quanty/AppLayout";
+import { KpiCard } from "@/components/quanty/KpiCard";
+import { RevenueChart } from "@/components/quanty/RevenueChart";
 
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Dashboard · Quanty" },
+      {
+        name: "description",
+        content:
+          "Quanty: gestión de insumos, cotizaciones y finanzas para microempresas y trabajadores independientes.",
+      },
+    ],
+  }),
+  component: DashboardPage,
 });
 
-// IMPORTANT: Replace this placeholder. For sites with multiple pages (About, Services, Contact, etc.),
-// create separate route files (about.tsx, services.tsx, contact.tsx) — don't put all pages in this file.
-function PlaceholderIndex() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
+const recentQuotes = [
+  { id: "COT-1042", client: "María Restrepo", amount: 1240000, status: "Pendiente" },
+  { id: "COT-1041", client: "Juan Cárdenas", amount: 860000, status: "Aprobada" },
+  { id: "COT-1040", client: "Carolina Mejía", amount: 2150000, status: "Pendiente" },
+  { id: "COT-1039", client: "Luis Tobón", amount: 540000, status: "Enviada" },
+];
 
-function Index() {
-  return <PlaceholderIndex />;
+const lowStock = [
+  { name: "Cemento gris 50kg", units: 3, threshold: 10 },
+  { name: "Pintura blanca 1gal", units: 1, threshold: 5 },
+  { name: "Tornillo 1/4 (caja)", units: 4, threshold: 12 },
+];
+
+function DashboardPage() {
+  return (
+    <AppLayout
+      title="Hola, Isabella 👋"
+      subtitle="Este es el resumen de tu negocio en tiempo real."
+      actions={
+        <>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
+            Exportar
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:-translate-y-0.5">
+            <Plus className="h-4 w-4" /> Nueva cotización
+          </button>
+        </>
+      }
+    >
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label="Utilidades del mes"
+          value="$8.420.000"
+          delta={12.5}
+          hint="vs. mes anterior"
+          icon={Wallet}
+          accent="primary"
+        />
+        <KpiCard
+          label="Valor del inventario"
+          value="$24.180.500"
+          delta={3.2}
+          hint="184 productos"
+          icon={Package}
+          accent="success"
+        />
+        <KpiCard
+          label="Ventas del mes"
+          value="$13.960.000"
+          delta={-4.1}
+          hint="42 ventas"
+          icon={ShoppingBag}
+          accent="warning"
+        />
+        <KpiCard
+          label="Cotizaciones pendientes"
+          value="7"
+          hint="3 vencen esta semana"
+          icon={FileClock}
+          accent="muted"
+        />
+      </section>
+
+      <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <RevenueChart />
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg font-bold text-foreground">Stock bajo</h2>
+            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning-foreground">
+              Atención
+            </span>
+          </div>
+          <ul className="space-y-3">
+            {lowStock.map((item) => {
+              const pct = Math.min(100, (item.units / item.threshold) * 100);
+              return (
+                <li key={item.name}>
+                  <div className="mb-1.5 flex items-center justify-between text-sm">
+                    <span className="font-medium text-foreground">{item.name}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {item.units}/{item.threshold}
+                    </span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-[image:var(--gradient-primary)] transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <button className="mt-5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
+            Ver inventario <ArrowUpRight className="h-4 w-4" />
+          </button>
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4 sm:px-6">
+          <div>
+            <h2 className="font-display text-lg font-bold text-foreground">
+              Cotizaciones recientes
+            </h2>
+            <p className="text-sm text-muted-foreground">Últimos movimientos comerciales</p>
+          </div>
+          <button className="text-sm font-semibold text-primary hover:underline">Ver todas</button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <th className="px-5 py-3 sm:px-6">Folio</th>
+                <th className="px-5 py-3 sm:px-6">Cliente</th>
+                <th className="px-5 py-3 text-right sm:px-6">Monto</th>
+                <th className="px-5 py-3 sm:px-6">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentQuotes.map((q) => (
+                <tr
+                  key={q.id}
+                  className="border-t border-border transition-colors hover:bg-muted/50"
+                >
+                  <td className="px-5 py-3 font-mono text-xs text-muted-foreground sm:px-6">
+                    {q.id}
+                  </td>
+                  <td className="px-5 py-3 font-medium text-foreground sm:px-6">{q.client}</td>
+                  <td className="px-5 py-3 text-right font-mono font-semibold text-foreground sm:px-6">
+                    ${q.amount.toLocaleString()}
+                  </td>
+                  <td className="px-5 py-3 sm:px-6">
+                    <span
+                      className={
+                        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold " +
+                        (q.status === "Aprobada"
+                          ? "bg-success/15 text-success"
+                          : q.status === "Pendiente"
+                            ? "bg-warning/20 text-warning-foreground"
+                            : "bg-primary/10 text-primary")
+                      }
+                    >
+                      {q.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </AppLayout>
+  );
 }

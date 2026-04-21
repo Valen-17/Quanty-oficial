@@ -73,7 +73,7 @@ export function RevenueChart() {
                 fontSize: "12px",
                 boxShadow: "0 10px 30px -10px oklch(0.48 0.22 295 / 0.25)",
               }}
-              formatter={(value: number) => [`$${value.toLocaleString()}`, ""]}
+              formatter={(value: any) => [`$${Number(value).toLocaleString()}`, ""] as [string, string]}
             />
             <Area
               type="monotone"

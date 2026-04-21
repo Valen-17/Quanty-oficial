@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const navItems = [
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+
+export const navItems: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/inventario", label: "Inventario", icon: Package },
   { to: "/cotizaciones", label: "Cotizaciones", icon: FileText },
@@ -20,7 +22,7 @@ export const navItems = [
   { to: "/balance", label: "Balance", icon: Wallet },
   { to: "/agenda", label: "Agenda", icon: CalendarDays },
   { to: "/configuracion", label: "Configuración", icon: Settings },
-] as const;
+];
 
 export function SidebarBrand() {
   return (
