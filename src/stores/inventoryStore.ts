@@ -23,14 +23,26 @@ export const useInventoryStore = create<InventoryState>()(
       addProduct: (data) =>
         set((s) => ({
           products: [
-            { id: `p-${Date.now()}`, ...data, description: data.description ?? "" },
+            {
+              id: `p-${Date.now()}`,
+              ...data,
+              description: data.description ?? "",
+              imageUrl: data.imageUrl ?? "",
+            },
             ...s.products,
           ],
         })),
       updateProduct: (id, data) =>
         set((s) => ({
           products: s.products.map((p) =>
-            p.id === id ? { ...p, ...data, description: data.description ?? "" } : p,
+            p.id === id
+              ? {
+                  ...p,
+                  ...data,
+                  description: data.description ?? "",
+                  imageUrl: data.imageUrl ?? "",
+                }
+              : p,
           ),
         })),
       deleteProduct: (id) =>
