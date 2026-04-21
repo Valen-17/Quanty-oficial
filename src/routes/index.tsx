@@ -1,15 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Wallet,
-  Package,
-  ShoppingBag,
-  FileClock,
-  Plus,
-  ArrowUpRight,
-} from "lucide-react";
+import { Wallet, Package, ShoppingBag, FileClock, Plus } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { KpiCard } from "@/components/quanty/KpiCard";
 import { RevenueChart } from "@/components/quanty/RevenueChart";
+import { LowStockPanel } from "@/components/quanty/LowStockPanel";
+import {
+  selectInventoryCount,
+  selectInventoryValue,
+  useInventoryStore,
+} from "@/stores/inventoryStore";
+
+const fmtCOP = new Intl.NumberFormat("es-CO", {
+  style: "currency",
+  currency: "COP",
+  maximumFractionDigits: 0,
+});
 
 export const Route = createFileRoute("/")({
   head: () => ({
