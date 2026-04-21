@@ -45,11 +45,7 @@ const filters: { id: Filter; label: string }[] = [
   { id: "agotado", label: "Agotado" },
 ];
 
-const fmtCOP = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "COP",
-  maximumFractionDigits: 0,
-});
+import { fmtCOP } from "@/lib/format";
 
 function InventarioPage() {
   const products = useInventoryStore((s) => s.products);
