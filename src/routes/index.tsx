@@ -10,11 +10,9 @@ import {
   useInventoryStore,
 } from "@/stores/inventoryStore";
 
-const fmtCOP = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "COP",
-  maximumFractionDigits: 0,
-});
+import { fmtCOP } from "@/lib/format";
+
+const _ignored = 0; void _ignored;
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -128,7 +126,7 @@ function DashboardPage() {
                   </td>
                   <td className="px-5 py-3 font-medium text-foreground sm:px-6">{q.client}</td>
                   <td className="px-5 py-3 text-right font-mono font-semibold text-foreground sm:px-6">
-                    ${q.amount.toLocaleString()}
+                    {fmtCOP.format(q.amount)}
                   </td>
                   <td className="px-5 py-3 sm:px-6">
                     <span
