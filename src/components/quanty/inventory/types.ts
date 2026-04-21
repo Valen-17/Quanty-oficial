@@ -26,6 +26,11 @@ export const productSchema = z.object({
     .int({ message: "El umbral debe ser un entero" })
     .min(1, { message: "El umbral mínimo es 1" })
     .max(9_999, { message: "Umbral demasiado alto" }),
+  imageUrl: z
+    .string()
+    .max(2_000_000, { message: "Imagen demasiado grande" })
+    .optional()
+    .or(z.literal("")),
 });
 
 export type ProductInput = z.infer<typeof productSchema>;
@@ -33,6 +38,7 @@ export type ProductInput = z.infer<typeof productSchema>;
 export interface Product extends ProductInput {
   id: string;
   description: string;
+  imageUrl: string;
 }
 
 export type Availability = "agotado" | "pocas" | "disponible";

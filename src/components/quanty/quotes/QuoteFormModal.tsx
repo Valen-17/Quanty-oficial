@@ -10,6 +10,7 @@ import { useInventoryStore } from "@/stores/inventoryStore";
 import { useClientsStore, type ClientInput } from "@/stores/clientsStore";
 import { ClientCombobox } from "@/components/quanty/clients/ClientCombobox";
 import { ClientFormModal } from "@/components/quanty/clients/ClientFormModal";
+import { ProductImage } from "@/components/quanty/inventory/ProductImage";
 import { fmtCOP } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -186,17 +187,20 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                             onClick={() => addItem(p.id)}
                             disabled={disabled}
                             className={cn(
-                              "group flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors",
-                              disabled
-                                ? "cursor-not-allowed opacity-50"
-                                : "hover:bg-primary/5",
+                              "group flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left transition-colors",
+                              disabled ? "cursor-not-allowed opacity-50" : "hover:bg-primary/5",
                             )}
                           >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {fmtCOP.format(p.price)} · stock: {p.units}
-                              </p>
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <ProductImage src={p.imageUrl} alt={p.name} size="sm" />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-foreground">
+                                  {p.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {fmtCOP.format(p.price)} · stock: {p.units}
+                                </p>
+                              </div>
                             </div>
                             <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary opacity-0 transition-opacity group-hover:opacity-100">
                               + Agregar

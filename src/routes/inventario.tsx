@@ -8,10 +8,10 @@ import {
   Trash2,
   Minus,
   Plus as PlusIcon,
-  ImageIcon,
 } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { ProductFormModal } from "@/components/quanty/inventory/ProductFormModal";
+import { ProductImage } from "@/components/quanty/inventory/ProductImage";
 import {
   availabilityLabel,
   availabilityStyles,
@@ -188,9 +188,7 @@ function InventarioPage() {
                     >
                       <td className="px-4 py-3 sm:px-5">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
-                            <ImageIcon className="h-4 w-4" />
-                          </div>
+                          <ProductImage src={p.imageUrl} alt={p.name} size="md" />
                           <div className="font-semibold text-foreground">{p.name}</div>
                         </div>
                       </td>

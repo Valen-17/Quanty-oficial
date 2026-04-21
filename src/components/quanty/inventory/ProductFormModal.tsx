@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { X, Package } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Package, Upload, Trash2 } from "lucide-react";
 import { productSchema, type Product, type ProductInput } from "./types";
+import { ProductImage } from "./ProductImage";
 
 interface Props {
   open: boolean;
@@ -15,9 +16,17 @@ type FormState = {
   price: string;
   units: string;
   threshold: string;
+  imageUrl: string;
 };
 
-const empty: FormState = { name: "", description: "", price: "", units: "", threshold: "10" };
+const empty: FormState = {
+  name: "",
+  description: "",
+  price: "",
+  units: "",
+  threshold: "10",
+  imageUrl: "",
+};
 
 function toForm(p: Product): FormState {
   return {
@@ -26,12 +35,43 @@ function toForm(p: Product): FormState {
     price: String(p.price),
     units: String(p.units),
     threshold: String(p.threshold),
+    imageUrl: p.imageUrl ?? "",
   };
+}
+
+const MAX_IMAGE_BYTES = 1_500_000; // 1.5MB raw before base64 (~2MB encoded)
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+async function compressImage(file: File, maxDim = 800, quality = 0.82): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = reject;
+    i.src = dataUrl;
+  });
+  const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+  const w = Math.round(img.width * scale);
+  const h = Math.round(img.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return dataUrl;
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
   const [form, setForm] = useState<FormState>(empty);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -54,6 +94,28 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
   const set = <K extends keyof FormState>(k: K, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setErrors((e) => ({ ...e, imageUrl: "Formato no soportado (JPG, PNG, WebP)" }));
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES * 4) {
+      setErrors((e) => ({ ...e, imageUrl: "Imagen demasiado grande (máx 6MB)" }));
+      return;
+    }
+    setUploading(true);
+    try {
+      const compressed = await compressImage(file);
+      setForm((f) => ({ ...f, imageUrl: compressed }));
+      setErrors((e) => ({ ...e, imageUrl: undefined }));
+    } catch {
+      setErrors((e) => ({ ...e, imageUrl: "No se pudo procesar la imagen" }));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = productSchema.safeParse({
@@ -62,6 +124,7 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
       price: form.price === "" ? NaN : Number(form.price),
       units: form.units === "" ? NaN : Number(form.units),
       threshold: form.threshold === "" ? NaN : Number(form.threshold),
+      imageUrl: form.imageUrl,
     });
 
     if (!parsed.success) {
@@ -74,17 +137,28 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
       return;
     }
 
-    onSubmit({ ...parsed.data, description: parsed.data.description ?? "" }, initial?.id);
+    onSubmit(
+      {
+        ...parsed.data,
+        description: parsed.data.description ?? "",
+        imageUrl: parsed.data.imageUrl ?? "",
+      },
+      initial?.id,
+    );
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      role="dialog"
+      aria-modal="true"
+    >
       <div
         className="absolute inset-0 bg-foreground/40 backdrop-blur-sm animate-in fade-in duration-200"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-lg rounded-t-2xl bg-card shadow-[var(--shadow-elegant)] animate-in slide-in-from-bottom-4 duration-300 sm:rounded-2xl">
+      <div className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-card shadow-[var(--shadow-elegant)] animate-in slide-in-from-bottom-4 duration-300 sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -109,6 +183,39 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
+          <Field label="Imagen" hint="JPG, PNG o WebP. Se redimensiona automáticamente." error={errors.imageUrl}>
+            <div className="flex items-center gap-3">
+              <ProductImage src={form.imageUrl} alt={form.name || "Producto"} size="lg" />
+              <div className="flex flex-col gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => handleFile(e.target.files?.[0])}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploading ? "Procesando…" : form.imageUrl ? "Cambiar imagen" : "Subir imagen"}
+                </button>
+                {form.imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => set("imageUrl", "")}
+                    className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Quitar
+                  </button>
+                )}
+              </div>
+            </div>
+          </Field>
+
           <Field label="Nombre" error={errors.name} required>
             <input
               type="text"
@@ -117,7 +224,6 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
               maxLength={80}
               placeholder="Ej. Cemento gris 50kg"
               className={inputCls(!!errors.name)}
-              autoFocus
             />
           </Field>
 
