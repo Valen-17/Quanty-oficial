@@ -98,29 +98,6 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const stockOf = (productId: string) =>
     products.find((p) => p.id === productId)?.units ?? 0;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsed = quoteInputSchema.safeParse({
-      clientName,
-      notes,
-      laborPercent: laborPercent === "" ? NaN : Number(laborPercent),
-      items,
-    });
-    if (!parsed.success) {
-      const errs: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const key = String(issue.path[0]);
-        if (!errs[key]) errs[key] = issue.message;
-      }
-      setErrors(errs);
-      return;
-    }
-    // Lo creamos a través del callback del padre para mantener el store fuera del modal
-    onCreated((parsed.data as unknown) as any);
-  };
-
-  void createQuote;
-
   if (!open) return null;
 
   return (
