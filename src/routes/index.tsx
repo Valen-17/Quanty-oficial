@@ -205,6 +205,13 @@ function DashboardPage() {
           </div>
         )}
       </section>
+
+      <QuoteFormModal
+        open={quoteModalOpen}
+        onClose={() => setQuoteModalOpen(false)}
+        onCreated={handleCreate}
+      />
+      <QuoteDetailModal quote={liveOpenQuote} onClose={() => setOpenQuote(null)} />
     </AppLayout>
   );
 }
