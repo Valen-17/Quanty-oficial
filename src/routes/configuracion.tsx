@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { nameFromEmail, useProfile } from "@/hooks/useProfile";
+import { AvatarUploader } from "@/components/quanty/AvatarUploader";
 
 export const Route = createFileRoute("/configuracion")({
   head: () => ({
@@ -118,6 +119,10 @@ function ConfigPage() {
           </div>
 
           <div className="space-y-4">
+            <div className="rounded-xl border border-border bg-background/60 p-4">
+              <AvatarUploader size={88} />
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-semibold text-foreground">
