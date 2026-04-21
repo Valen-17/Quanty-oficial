@@ -14,6 +14,7 @@ import { Route as CotizacionesRouteImport } from './routes/cotizaciones'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as BalanceRouteImport } from './routes/balance'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -42,6 +43,11 @@ const BalanceRoute = BalanceRouteImport.update({
   path: '/balance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AgendaRoute = AgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
@@ -56,6 +62,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
+  '/auth': typeof AuthRoute
   '/balance': typeof BalanceRoute
   '/clientes': typeof ClientesRoute
   '/configuracion': typeof ConfiguracionRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
+  '/auth': typeof AuthRoute
   '/balance': typeof BalanceRoute
   '/clientes': typeof ClientesRoute
   '/configuracion': typeof ConfiguracionRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
+  '/auth': typeof AuthRoute
   '/balance': typeof BalanceRoute
   '/clientes': typeof ClientesRoute
   '/configuracion': typeof ConfiguracionRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/agenda'
+    | '/auth'
     | '/balance'
     | '/clientes'
     | '/configuracion'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/agenda'
+    | '/auth'
     | '/balance'
     | '/clientes'
     | '/configuracion'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/agenda'
+    | '/auth'
     | '/balance'
     | '/clientes'
     | '/configuracion'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgendaRoute: typeof AgendaRoute
+  AuthRoute: typeof AuthRoute
   BalanceRoute: typeof BalanceRoute
   ClientesRoute: typeof ClientesRoute
   ConfiguracionRoute: typeof ConfiguracionRoute
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BalanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/agenda': {
       id: '/agenda'
       path: '/agenda'
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgendaRoute: AgendaRoute,
+  AuthRoute: AuthRoute,
   BalanceRoute: BalanceRoute,
   ClientesRoute: ClientesRoute,
   ConfiguracionRoute: ConfiguracionRoute,
@@ -187,3 +208,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
