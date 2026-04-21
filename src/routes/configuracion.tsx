@@ -20,6 +20,8 @@ import {
   type Theme,
 } from "@/stores/settingsStore";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { nameFromEmail, useProfile } from "@/hooks/useProfile";
 
 export const Route = createFileRoute("/configuracion")({
   head: () => ({
@@ -37,19 +39,34 @@ export const Route = createFileRoute("/configuracion")({
 function ConfigPage() {
   const profile = useSettingsStore((s) => s.profile);
   const preferences = useSettingsStore((s) => s.preferences);
-  const updateProfile = useSettingsStore((s) => s.updateProfile);
+  const updateLocalProfile = useSettingsStore((s) => s.updateProfile);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
   const resetAll = useSettingsStore((s) => s.resetAll);
+
+  const { user } = useAuth();
+  const { profile: cloudProfile, updateProfile: updateCloudProfile, loading: profileLoading } = useProfile();
 
   const [form, setForm] = useState<Profile>(profile);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
 
+  // Sincroniza el formulario con los datos reales del usuario autenticado
   useEffect(() => {
-    setForm(profile);
-  }, [profile]);
+    if (profileLoading) return;
+    setForm((prev) => ({
+      ...prev,
+      fullName:
+        cloudProfile?.full_name?.trim() ||
+        nameFromEmail(user?.email) ||
+        prev.fullName,
+      businessName: cloudProfile?.business_name ?? prev.businessName ?? "",
+      phone: cloudProfile?.phone ?? prev.phone ?? "",
+      email: user?.email ?? prev.email ?? "",
+    }));
+  }, [cloudProfile, user, profileLoading]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const parsed = profileSchema.safeParse(form);
     if (!parsed.success) {
       const next: Record<string, string> = {};
@@ -58,7 +75,20 @@ function ConfigPage() {
       return;
     }
     setErrors({});
-    updateProfile(parsed.data);
+    setSaving(true);
+    // Persiste preferencias locales (moneda, idioma)
+    updateLocalProfile(parsed.data);
+    // Persiste perfil en Supabase
+    const { error } = await updateCloudProfile({
+      full_name: parsed.data.fullName,
+      business_name: parsed.data.businessName ?? "",
+      phone: parsed.data.phone ?? "",
+    });
+    setSaving(false);
+    if (error) {
+      setErrors({ fullName: "No se pudo guardar en la nube" });
+      return;
+    }
     setSavedAt(Date.now());
   };
 
