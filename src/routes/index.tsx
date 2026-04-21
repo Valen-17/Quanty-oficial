@@ -1,10 +1,12 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { Wallet, Package, ShoppingBag, FileClock, Plus, FileText } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { KpiCard } from "@/components/quanty/KpiCard";
 import { RevenueChart } from "@/components/quanty/RevenueChart";
 import { LowStockPanel } from "@/components/quanty/LowStockPanel";
+import { QuoteFormModal } from "@/components/quanty/quotes/QuoteFormModal";
+import { QuoteDetailModal } from "@/components/quanty/quotes/QuoteDetailModal";
 import {
   selectInventoryCount,
   selectInventoryValue,
@@ -14,6 +16,8 @@ import {
   quoteStatusLabel,
   quoteStatusStyles,
   useQuotesStore,
+  type Quote,
+  type QuoteInput,
 } from "@/stores/quotesStore";
 import { fmtCOP, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -36,7 +40,17 @@ function DashboardPage() {
   const inventoryValue = useInventoryStore(selectInventoryValue);
   const inventoryCount = useInventoryStore(selectInventoryCount);
   const quotes = useQuotesStore((s) => s.quotes);
-  const navigate = useNavigate();
+  const createQuote = useQuotesStore((s) => s.createQuote);
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+  const [openQuote, setOpenQuote] = useState<Quote | null>(null);
+
+  const liveOpenQuote = openQuote ? quotes.find((q) => q.id === openQuote.id) ?? null : null;
+
+  const handleCreate = (data: QuoteInput) => {
+    const q = createQuote(data);
+    setQuoteModalOpen(false);
+    setOpenQuote(q);
+  };
 
   const recentQuotes = useMemo(
     () => [...quotes].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
@@ -63,7 +77,7 @@ function DashboardPage() {
             Exportar
           </button>
           <button
-            onClick={() => navigate({ to: "/cotizaciones" })}
+            onClick={() => setQuoteModalOpen(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:-translate-y-0.5"
           >
             <Plus className="h-4 w-4" /> Nueva cotización
