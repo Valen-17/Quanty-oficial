@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated: (id: string) => void;
+  onCreated: (data: QuoteInput) => void;
 }
 
 export function QuoteFormModal({ open, onClose, onCreated }: Props) {
