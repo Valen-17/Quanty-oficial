@@ -18,7 +18,7 @@ interface Props {
 
 export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const products = useInventoryStore((s) => s.products);
-  const createQuote = (window as any) && undefined; // placeholder — el padre invoca createQuote vía onCreated
+  
 
   const [clientName, setClientName] = useState("");
   const [notes, setNotes] = useState("");
