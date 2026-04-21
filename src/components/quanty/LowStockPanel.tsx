@@ -1,15 +1,29 @@
+import { useMemo } from "react";
 import { ArrowUpRight, PackageCheck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useInventoryStore } from "@/stores/inventoryStore";
 import {
-  selectLowStock,
-  useInventoryStore,
-} from "@/stores/inventoryStore";
-import { availabilityLabel, availabilityStyles } from "@/components/quanty/inventory/types";
+  availabilityLabel,
+  availabilityStyles,
+  getAvailability,
+  type Availability,
+} from "@/components/quanty/inventory/types";
 import { ProductImage } from "@/components/quanty/inventory/ProductImage";
 import { cn } from "@/lib/utils";
 
 export function LowStockPanel() {
-  const items = useInventoryStore(selectLowStock);
+  const products = useInventoryStore((s) => s.products);
+  const items = useMemo(() => {
+    const order: Record<Availability, number> = { agotado: 0, pocas: 1, disponible: 2 };
+    return products
+      .map((p) => ({ ...p, availability: getAvailability(p) }))
+      .filter((p) => p.availability !== "disponible")
+      .sort((a, b) =>
+        order[a.availability] !== order[b.availability]
+          ? order[a.availability] - order[b.availability]
+          : a.units / a.threshold - b.units / b.threshold,
+      );
+  }, [products]);
   const top = items.slice(0, 5);
 
   return (
