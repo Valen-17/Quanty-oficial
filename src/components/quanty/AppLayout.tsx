@@ -3,6 +3,7 @@ import { Menu, Bell, Search, LogOut } from "lucide-react";
 import { DesktopSidebar, MobileSidebar } from "./Sidebar";
 import { RequireAuth } from "./RouteGuard";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 
 interface AppLayoutProps {
   title: string;
@@ -34,10 +35,9 @@ function AppLayoutInner({ title, subtitle, actions, children }: AppLayoutProps) 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { displayName } = useProfile();
 
-  const fullName =
-    (user?.user_metadata?.full_name as string | undefined) ?? null;
-  const initials = getInitials(fullName, user?.email);
+  const initials = getInitials(displayName, user?.email);
 
   return (
     <div className="min-h-screen w-full bg-background">
@@ -91,7 +91,7 @@ function AppLayoutInner({ title, subtitle, actions, children }: AppLayoutProps) 
                   <div className="absolute right-0 top-11 z-40 w-60 overflow-hidden rounded-xl border border-border bg-popover shadow-[var(--shadow-card)]">
                     <div className="border-b border-border px-3 py-3">
                       <p className="truncate text-sm font-semibold text-foreground">
-                        {fullName ?? "Mi cuenta"}
+                        {displayName}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
                         {user?.email}
