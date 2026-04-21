@@ -7,6 +7,9 @@ import {
   type QuoteItem,
 } from "@/stores/quotesStore";
 import { useInventoryStore } from "@/stores/inventoryStore";
+import { useClientsStore, type ClientInput } from "@/stores/clientsStore";
+import { ClientCombobox } from "@/components/quanty/clients/ClientCombobox";
+import { ClientFormModal } from "@/components/quanty/clients/ClientFormModal";
 import { fmtCOP } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +21,7 @@ interface Props {
 
 export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const products = useInventoryStore((s) => s.products);
-  
+  const createClient = useClientsStore((s) => s.createClient);
 
   const [clientName, setClientName] = useState("");
   const [notes, setNotes] = useState("");
@@ -26,6 +29,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [query, setQuery] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [clientModalOpen, setClientModalOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -210,13 +214,11 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
             <div className="flex min-h-0 flex-col md:col-span-3">
               <div className="space-y-3 border-b border-border p-4">
                 <Field label="Cliente" error={errors.clientName} required>
-                  <input
-                    type="text"
+                  <ClientCombobox
                     value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    maxLength={80}
-                    placeholder="Nombre del cliente"
-                    className={inputCls(!!errors.clientName)}
+                    onChange={setClientName}
+                    onCreateNew={() => setClientModalOpen(true)}
+                    error={!!errors.clientName}
                   />
                 </Field>
                 <Field
@@ -362,6 +364,16 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
           </div>
         </form>
       </div>
+
+      <ClientFormModal
+        open={clientModalOpen}
+        onClose={() => setClientModalOpen(false)}
+        onSubmit={(data: ClientInput) => {
+          const c = createClient(data);
+          setClientName(c.name);
+          setClientModalOpen(false);
+        }}
+      />
     </div>
   );
 }
