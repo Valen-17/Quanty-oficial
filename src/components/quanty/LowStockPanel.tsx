@@ -5,6 +5,7 @@ import {
   useInventoryStore,
 } from "@/stores/inventoryStore";
 import { availabilityLabel, availabilityStyles } from "@/components/quanty/inventory/types";
+import { ProductImage } from "@/components/quanty/inventory/ProductImage";
 import { cn } from "@/lib/utils";
 
 export function LowStockPanel() {
