@@ -8,7 +8,6 @@ import {
   Trash2,
   Minus,
   Plus as PlusIcon,
-  ImageIcon,
 } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { ProductFormModal } from "@/components/quanty/inventory/ProductFormModal";
