@@ -8,6 +8,7 @@ export const seedProducts: Product[] = [
     price: 38000,
     units: 3,
     threshold: 10,
+    imageUrl: "",
   },
   {
     id: "p-002",
@@ -16,6 +17,7 @@ export const seedProducts: Product[] = [
     price: 72000,
     units: 1,
     threshold: 5,
+    imageUrl: "",
   },
   {
     id: "p-003",
@@ -24,6 +26,7 @@ export const seedProducts: Product[] = [
     price: 18500,
     units: 24,
     threshold: 12,
+    imageUrl: "",
   },
   {
     id: "p-004",
@@ -32,6 +35,7 @@ export const seedProducts: Product[] = [
     price: 2400,
     units: 0,
     threshold: 50,
+    imageUrl: "",
   },
   {
     id: "p-005",
@@ -40,6 +44,7 @@ export const seedProducts: Product[] = [
     price: 9800,
     units: 18,
     threshold: 6,
+    imageUrl: "",
   },
   {
     id: "p-006",
@@ -48,6 +53,7 @@ export const seedProducts: Product[] = [
     price: 14500,
     units: 42,
     threshold: 15,
+    imageUrl: "",
   },
   {
     id: "p-007",
@@ -56,5 +62,6 @@ export const seedProducts: Product[] = [
     price: 2200,
     units: 4,
     threshold: 20,
+    imageUrl: "",
   },
 ];
