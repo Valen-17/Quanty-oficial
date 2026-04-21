@@ -44,33 +44,36 @@ export function LowStockPanel() {
           {top.map((item) => {
             const pct = Math.min(100, (item.units / item.threshold) * 100);
             return (
-              <li key={item.id}>
-                <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-                  <span className="line-clamp-1 font-medium text-foreground">{item.name}</span>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-                      availabilityStyles[item.availability],
-                    )}
-                  >
-                    {availabilityLabel[item.availability]}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div
+              <li key={item.id} className="flex items-center gap-3">
+                <ProductImage src={item.imageUrl} alt={item.name} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                    <span className="line-clamp-1 font-medium text-foreground">{item.name}</span>
+                    <span
                       className={cn(
-                        "h-full rounded-full transition-all",
-                        item.availability === "agotado"
-                          ? "bg-destructive"
-                          : "bg-[image:var(--gradient-primary)]",
+                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                        availabilityStyles[item.availability],
                       )}
-                      style={{ width: `${pct}%` }}
-                    />
+                    >
+                      {availabilityLabel[item.availability]}
+                    </span>
                   </div>
-                  <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                    {item.units}/{item.threshold}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          item.availability === "agotado"
+                            ? "bg-destructive"
+                            : "bg-[image:var(--gradient-primary)]",
+                        )}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                      {item.units}/{item.threshold}
+                    </span>
+                  </div>
                 </div>
               </li>
             );
