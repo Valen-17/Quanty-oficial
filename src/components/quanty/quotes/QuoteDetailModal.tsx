@@ -1,4 +1,4 @@
-import { X, FileText, Check, Send, Trash2, Printer } from "lucide-react";
+import { X, FileText, Check, Send, Trash2, Printer, Download } from "lucide-react";
 import {
   quoteStatusLabel,
   quoteStatusStyles,
@@ -7,6 +7,7 @@ import {
 } from "@/stores/quotesStore";
 import { useInventoryStore } from "@/stores/inventoryStore";
 import { fmtCOP, fmtDate } from "@/lib/format";
+import { downloadQuotePdf } from "@/lib/quotePdf";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
 
@@ -191,6 +192,12 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
             <Trash2 className="h-4 w-4" /> Eliminar
           </button>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => downloadQuotePdf(quote)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+            >
+              <Download className="h-4 w-4" /> Descargar PDF
+            </button>
             <button
               onClick={() => window.print()}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
