@@ -52,7 +52,12 @@ const fmtCOP = new Intl.NumberFormat("es-CO", {
 });
 
 function InventarioPage() {
-  const [products, setProducts] = useState<Product[]>(seedProducts);
+  const products = useInventoryStore((s) => s.products);
+  const addProduct = useInventoryStore((s) => s.addProduct);
+  const updateProduct = useInventoryStore((s) => s.updateProduct);
+  const deleteProduct = useInventoryStore((s) => s.deleteProduct);
+  const adjustStock = useInventoryStore((s) => s.adjustStock);
+
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("todos");
   const [modalOpen, setModalOpen] = useState(false);
@@ -79,32 +84,14 @@ function InventarioPage() {
     [products],
   );
 
-  const adjustStock = (id: string, delta: number) => {
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, units: Math.max(0, Math.min(999_999, p.units + delta)) } : p,
-      ),
-    );
-  };
-
   const handleSubmit = (data: ProductInput, id?: string) => {
-    if (id) {
-      setProducts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, ...data, description: data.description ?? "" } : p)),
-      );
-    } else {
-      const newProduct: Product = {
-        id: `p-${Date.now()}`,
-        ...data,
-        description: data.description ?? "",
-      };
-      setProducts((prev) => [newProduct, ...prev]);
-    }
+    if (id) updateProduct(id, data);
+    else addProduct(data);
   };
 
   const handleDelete = (id: string) => {
     if (confirm("¿Eliminar este producto del inventario?")) {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+      deleteProduct(id);
     }
   };
 
