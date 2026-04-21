@@ -1,15 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Wallet,
-  Package,
-  ShoppingBag,
-  FileClock,
-  Plus,
-  ArrowUpRight,
-} from "lucide-react";
+import { Wallet, Package, ShoppingBag, FileClock, Plus } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { KpiCard } from "@/components/quanty/KpiCard";
 import { RevenueChart } from "@/components/quanty/RevenueChart";
+import { LowStockPanel } from "@/components/quanty/LowStockPanel";
+import {
+  selectInventoryCount,
+  selectInventoryValue,
+  useInventoryStore,
+} from "@/stores/inventoryStore";
+
+const fmtCOP = new Intl.NumberFormat("es-CO", {
+  style: "currency",
+  currency: "COP",
+  maximumFractionDigits: 0,
+});
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -32,13 +37,10 @@ const recentQuotes = [
   { id: "COT-1039", client: "Luis Tobón", amount: 540000, status: "Enviada" },
 ];
 
-const lowStock = [
-  { name: "Cemento gris 50kg", units: 3, threshold: 10 },
-  { name: "Pintura blanca 1gal", units: 1, threshold: 5 },
-  { name: "Tornillo 1/4 (caja)", units: 4, threshold: 12 },
-];
-
 function DashboardPage() {
+  const inventoryValue = useInventoryStore(selectInventoryValue);
+  const inventoryCount = useInventoryStore(selectInventoryCount);
+
   return (
     <AppLayout
       title="Hola, Isabella 👋"
@@ -65,9 +67,8 @@ function DashboardPage() {
         />
         <KpiCard
           label="Valor del inventario"
-          value="$24.180.500"
-          delta={3.2}
-          hint="184 productos"
+          value={fmtCOP.format(inventoryValue)}
+          hint={`${inventoryCount} ${inventoryCount === 1 ? "producto" : "productos"}`}
           icon={Package}
           accent="success"
         />
@@ -93,38 +94,7 @@ function DashboardPage() {
           <RevenueChart />
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-lg font-bold text-foreground">Stock bajo</h2>
-            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning-foreground">
-              Atención
-            </span>
-          </div>
-          <ul className="space-y-3">
-            {lowStock.map((item) => {
-              const pct = Math.min(100, (item.units / item.threshold) * 100);
-              return (
-                <li key={item.name}>
-                  <div className="mb-1.5 flex items-center justify-between text-sm">
-                    <span className="font-medium text-foreground">{item.name}</span>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {item.units}/{item.threshold}
-                    </span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-[image:var(--gradient-primary)] transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <button className="mt-5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
-            Ver inventario <ArrowUpRight className="h-4 w-4" />
-          </button>
-        </div>
+        <LowStockPanel />
       </section>
 
       <section className="mt-6 rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
