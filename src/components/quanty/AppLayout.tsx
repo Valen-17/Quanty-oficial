@@ -35,9 +35,10 @@ function AppLayoutInner({ title, subtitle, actions, children }: AppLayoutProps) 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
-  const { displayName } = useProfile();
+  const { displayName, profile } = useProfile();
 
   const initials = getInitials(displayName, user?.email);
+  const avatarUrl = profile?.avatar_url || null;
 
   return (
     <div className="min-h-screen w-full bg-background">
@@ -77,10 +78,14 @@ function AppLayoutInner({ title, subtitle, actions, children }: AppLayoutProps) 
             <div className="relative">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[image:var(--gradient-primary)] text-sm font-semibold text-primary-foreground transition-transform hover:scale-105"
+                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[image:var(--gradient-primary)] text-sm font-semibold text-primary-foreground ring-2 ring-transparent transition-all hover:scale-105 hover:ring-primary/40"
                 aria-label="Menú de cuenta"
               >
-                {initials}
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                ) : (
+                  initials
+                )}
               </button>
               {menuOpen && (
                 <>
