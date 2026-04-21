@@ -364,6 +364,16 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
           </div>
         </form>
       </div>
+
+      <ClientFormModal
+        open={clientModalOpen}
+        onClose={() => setClientModalOpen(false)}
+        onSubmit={(data: ClientInput) => {
+          const c = createClient(data);
+          setClientName(c.name);
+          setClientModalOpen(false);
+        }}
+      />
     </div>
   );
 }
