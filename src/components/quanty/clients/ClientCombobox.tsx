@@ -6,11 +6,12 @@ import { cn } from "@/lib/utils";
 interface Props {
   value: string;
   onChange: (name: string) => void;
+  onSelectClient?: (client: Client) => void;
   onCreateNew: () => void;
   error?: boolean;
 }
 
-export function ClientCombobox({ value, onChange, onCreateNew, error }: Props) {
+export function ClientCombobox({ value, onChange, onSelectClient, onCreateNew, error }: Props) {
   const clients = useClientsStore((s) => s.clients);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -100,6 +101,7 @@ export function ClientCombobox({ value, onChange, onCreateNew, error }: Props) {
                       type="button"
                       onClick={() => {
                         onChange(c.name);
+                        onSelectClient?.(c);
                         setOpen(false);
                         setQuery("");
                       }}

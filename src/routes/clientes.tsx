@@ -36,10 +36,11 @@ function ClientesPage() {
   const stats = useMemo(() => {
     const totals = new Map<string, { count: number; sum: number }>();
     for (const q of quotes) {
-      const t = totals.get(q.clientName) ?? { count: 0, sum: 0 };
+      const key = q.clientId ?? q.clientName;
+      const t = totals.get(key) ?? { count: 0, sum: 0 };
       t.count++;
       if (q.status === "aprobada") t.sum += q.total;
-      totals.set(q.clientName, t);
+      totals.set(key, t);
     }
     return totals;
   }, [quotes]);
@@ -139,7 +140,7 @@ function ClientesPage() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((c) => {
-            const s = stats.get(c.name);
+            const s = stats.get(c.id) ?? stats.get(c.name);
             return (
               <article
                 key={c.id}

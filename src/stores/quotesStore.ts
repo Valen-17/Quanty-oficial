@@ -1,50 +1,27 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { z } from "zod";
+import { createEntityId, nowTs } from "@/domain/common";
+import {
+  quoteInputSchema as domainQuoteInputSchema,
+  quoteItemSchema as domainQuoteItemSchema,
+  quoteStatusSchema as domainQuoteStatusSchema,
+  quotesPersistedSchema,
+  type Quote as DomainQuote,
+  type QuoteInput as DomainQuoteInput,
+  type QuoteItem as DomainQuoteItem,
+  type QuoteStatus as DomainQuoteStatus,
+  type QuotesPersisted,
+} from "@/domain/entities";
+import { buildPersistOptions } from "@/lib/persist-helpers";
+import { useInventoryStore } from "@/stores/inventoryStore";
 
-export const quoteStatusSchema = z.enum(["borrador", "enviada", "aprobada", "rechazada"]);
-export type QuoteStatus = z.infer<typeof quoteStatusSchema>;
-
-export const quoteItemSchema = z.object({
-  productId: z.string(),
-  name: z.string(),
-  unitPrice: z.number().nonnegative(),
-  quantity: z.number().int().min(1),
-});
-export type QuoteItem = z.infer<typeof quoteItemSchema>;
-
-export const quoteInputSchema = z.object({
-  clientName: z
-    .string()
-    .trim()
-    .min(2, { message: "El cliente debe tener al menos 2 caracteres" })
-    .max(80, { message: "Máximo 80 caracteres" }),
-  notes: z
-    .string()
-    .trim()
-    .max(280, { message: "Máximo 280 caracteres" })
-    .optional()
-    .or(z.literal("")),
-  laborPercent: z
-    .number({ invalid_type_error: "Debe ser un número" })
-    .min(0, { message: "Mínimo 0%" })
-    .max(100, { message: "Máximo 100%" }),
-  items: z.array(quoteItemSchema).min(1, { message: "Agrega al menos un insumo" }),
-});
-export type QuoteInput = z.infer<typeof quoteInputSchema>;
-
-export interface Quote extends QuoteInput {
-  id: string;
-  folio: string;
-  status: QuoteStatus;
-  createdAt: number;
-  approvedAt?: number;
-  notes: string;
-  // Snapshot de cálculos al momento de creación/aprobación
-  subtotal: number;
-  laborAmount: number;
-  total: number;
-}
+export const quoteStatusSchema = domainQuoteStatusSchema;
+export type QuoteStatus = DomainQuoteStatus;
+export const quoteItemSchema = domainQuoteItemSchema;
+export type QuoteItem = DomainQuoteItem;
+export const quoteInputSchema = domainQuoteInputSchema;
+export type QuoteInput = DomainQuoteInput;
+export type Quote = DomainQuote;
 
 export function calcTotals(items: QuoteItem[], laborPercent: number) {
   const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
@@ -58,7 +35,16 @@ interface QuotesState {
   counter: number;
   createQuote: (data: QuoteInput) => Quote;
   setStatus: (id: string, status: QuoteStatus) => void;
+  approveQuote: (id: string) => { ok: boolean; error?: string; issues?: ApprovalIssue[] };
+  getApprovalIssues: (id: string) => ApprovalIssue[];
   deleteQuote: (id: string) => void;
+}
+
+export interface ApprovalIssue {
+  productId: string;
+  name: string;
+  available: number;
+  needed: number;
 }
 
 export const useQuotesStore = create<QuotesState>()(
@@ -68,14 +54,25 @@ export const useQuotesStore = create<QuotesState>()(
       counter: 1000,
       createQuote: (data) => {
         const counter = get().counter + 1;
-        const totals = calcTotals(data.items, data.laborPercent);
+        const normalizedItems = data.items.map((item) => ({
+          ...item,
+          productNameSnapshot: item.productNameSnapshot ?? item.name,
+          unitPriceSnapshot: item.unitPriceSnapshot ?? item.unitPrice,
+          // Compatibilidad actual con UI existente
+          name: item.productNameSnapshot ?? item.name,
+          unitPrice: item.unitPriceSnapshot ?? item.unitPrice,
+        }));
+        const totals = calcTotals(normalizedItems, data.laborPercent);
         const quote: Quote = {
-          id: `q-${Date.now()}`,
+          id: createEntityId("q"),
           folio: `COT-${counter}`,
           status: "borrador",
-          createdAt: Date.now(),
+          createdAt: nowTs(),
           notes: data.notes ?? "",
           ...data,
+          clientNameSnapshot: data.clientNameSnapshot ?? data.clientName,
+          clientName: data.clientNameSnapshot ?? data.clientName,
+          items: normalizedItems,
           ...totals,
         };
         set((s) => ({ quotes: [quote, ...s.quotes], counter }));
@@ -85,14 +82,77 @@ export const useQuotesStore = create<QuotesState>()(
         set((s) => ({
           quotes: s.quotes.map((q) =>
             q.id === id
-              ? { ...q, status, approvedAt: status === "aprobada" ? Date.now() : q.approvedAt }
+              ? { ...q, status, approvedAt: status === "aprobada" ? nowTs() : q.approvedAt }
               : q,
           ),
         })),
+      getApprovalIssues: (id) => {
+        const quote = get().quotes.find((q) => q.id === id);
+        if (!quote) return [];
+        const products = useInventoryStore.getState().products;
+        return quote.items
+          .map((i) => {
+            const p = products.find((x) => x.id === i.productId);
+            const available = p?.units ?? 0;
+            return available < i.quantity
+              ? {
+                  productId: i.productId,
+                  name: i.productNameSnapshot ?? i.name,
+                  available,
+                  needed: i.quantity,
+                }
+              : null;
+          })
+          .filter(Boolean) as ApprovalIssue[];
+      },
+      approveQuote: (id) => {
+        const quote = get().quotes.find((q) => q.id === id);
+        if (!quote) return { ok: false, error: "Cotización no encontrada" };
+        if (quote.status === "aprobada") return { ok: true };
+        if (quote.status === "rechazada") {
+          return { ok: false, error: "No puedes aprobar una cotización rechazada" };
+        }
+        const issues = get().getApprovalIssues(id);
+        if (issues.length > 0) return { ok: false, issues };
+
+        const { adjustStock } = useInventoryStore.getState();
+        for (const it of quote.items) adjustStock(it.productId, -it.quantity);
+
+        set((s) => ({
+          quotes: s.quotes.map((q) =>
+            q.id === id ? { ...q, status: "aprobada", approvedAt: nowTs() } : q,
+          ),
+        }));
+        return { ok: true };
+      },
       deleteQuote: (id) =>
         set((s) => ({ quotes: s.quotes.filter((q) => q.id !== id) })),
     }),
-    { name: "quanty-quotes-v1" },
+    buildPersistOptions<QuotesState, QuotesPersisted>({
+      name: "quanty-quotes-v1",
+      version: 2,
+      schema: quotesPersistedSchema,
+      fallback: () => ({ quotes: [], counter: 1000 }),
+      partialize: (state) => ({ quotes: state.quotes, counter: state.counter }),
+      migrations: {
+        2: (state) => ({
+          ...state,
+          quotes: state.quotes.map((q) => ({
+            ...q,
+            notes: q.notes ?? "",
+            clientNameSnapshot: q.clientNameSnapshot ?? q.clientName,
+            clientName: q.clientNameSnapshot ?? q.clientName,
+            items: q.items.map((it) => ({
+              ...it,
+              productNameSnapshot: it.productNameSnapshot ?? it.name,
+              unitPriceSnapshot: it.unitPriceSnapshot ?? it.unitPrice,
+              name: it.productNameSnapshot ?? it.name,
+              unitPrice: it.unitPriceSnapshot ?? it.unitPrice,
+            })),
+          })),
+        }),
+      },
+    }),
   ),
 );
 

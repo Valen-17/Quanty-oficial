@@ -22,6 +22,11 @@ import {
 import { fmtCOP, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { firstName, useProfile } from "@/hooks/useProfile";
+import {
+  selectApprovedIncome,
+  selectPendingQuotesCount,
+  selectQuoteCountByStatus,
+} from "@/stores/selectors";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -60,15 +65,9 @@ function DashboardPage() {
     [quotes],
   );
 
-  const pendingCount = useMemo(
-    () => quotes.filter((q) => q.status === "borrador" || q.status === "enviada").length,
-    [quotes],
-  );
-
-  const approvedTotal = useMemo(
-    () => quotes.filter((q) => q.status === "aprobada").reduce((s, q) => s + q.total, 0),
-    [quotes],
-  );
+  const pendingCount = useMemo(() => selectPendingQuotesCount(quotes), [quotes]);
+  const approvedTotal = useMemo(() => selectApprovedIncome(quotes), [quotes]);
+  const quoteByStatus = useMemo(() => selectQuoteCountByStatus(quotes), [quotes]);
 
   return (
     <AppLayout
@@ -92,7 +91,7 @@ function DashboardPage() {
         <KpiCard
           label="Ingresos aprobados"
           value={fmtCOP.format(approvedTotal)}
-          hint={`${quotes.filter((q) => q.status === "aprobada").length} cotizaciones`}
+          hint={`${quoteByStatus.aprobada} cotizaciones`}
           icon={Wallet}
           accent="primary"
         />

@@ -7,20 +7,16 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-const data = [
-  { month: "Ene", ingresos: 3200, gastos: 1800 },
-  { month: "Feb", ingresos: 4100, gastos: 2100 },
-  { month: "Mar", ingresos: 3800, gastos: 2400 },
-  { month: "Abr", ingresos: 5200, gastos: 2700 },
-  { month: "May", ingresos: 4800, gastos: 2300 },
-  { month: "Jun", ingresos: 6100, gastos: 3100 },
-  { month: "Jul", ingresos: 7400, gastos: 3600 },
-  { month: "Ago", ingresos: 6800, gastos: 3200 },
-  { month: "Sep", ingresos: 8200, gastos: 3900 },
-];
+import { useMemo } from "react";
+import { useExpensesStore } from "@/stores/expensesStore";
+import { useQuotesStore } from "@/stores/quotesStore";
+import { selectFinanceSeries } from "@/stores/selectors";
 
 export function RevenueChart() {
+  const quotes = useQuotesStore((s) => s.quotes);
+  const expenses = useExpensesStore((s) => s.expenses);
+  const data = useMemo(() => selectFinanceSeries(quotes, expenses), [quotes, expenses]);
+
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

@@ -24,6 +24,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const products = useInventoryStore((s) => s.products);
   const createClient = useClientsStore((s) => s.createClient);
 
+  const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [clientName, setClientName] = useState("");
   const [notes, setNotes] = useState("");
   const [laborPercent, setLaborPercent] = useState("20");
@@ -34,6 +35,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
 
   useEffect(() => {
     if (open) {
+      setClientId(undefined);
       setClientName("");
       setNotes("");
       setLaborPercent("20");
@@ -130,7 +132,9 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
           onSubmit={(e) => {
             e.preventDefault();
             const parsed = quoteInputSchema.safeParse({
+              clientId,
               clientName,
+              clientNameSnapshot: clientName,
               notes,
               laborPercent: laborPercent === "" ? NaN : Number(laborPercent),
               items,
@@ -220,7 +224,12 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                 <Field label="Cliente" error={errors.clientName} required>
                   <ClientCombobox
                     value={clientName}
-                    onChange={setClientName}
+                    onChange={(name) => {
+                      setClientName(name);
+                    }}
+                    onSelectClient={(client) => {
+                      setClientId(client.id);
+                    }}
                     onCreateNew={() => setClientModalOpen(true)}
                     error={!!errors.clientName}
                   />
@@ -374,6 +383,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
         onClose={() => setClientModalOpen(false)}
         onSubmit={(data: ClientInput) => {
           const c = createClient(data);
+          setClientId(c.id);
           setClientName(c.name);
           setClientModalOpen(false);
         }}

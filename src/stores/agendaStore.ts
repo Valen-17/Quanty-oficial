@@ -1,49 +1,22 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { z } from "zod";
+import { createEntityId, nowTs } from "@/domain/common";
+import {
+  agendaPersistedSchema,
+  eventInputSchema as domainEventInputSchema,
+  eventStatusSchema as domainEventStatusSchema,
+  type AgendaEvent as DomainAgendaEvent,
+  type AgendaPersisted,
+  type EventInput as DomainEventInput,
+  type EventStatus as DomainEventStatus,
+} from "@/domain/entities";
+import { buildPersistOptions } from "@/lib/persist-helpers";
 
-export const eventStatusSchema = z.enum(["pendiente", "confirmado", "completado", "cancelado"]);
-export type EventStatus = z.infer<typeof eventStatusSchema>;
-
-export const eventInputSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(2, { message: "Mínimo 2 caracteres" })
-    .max(80, { message: "Máximo 80 caracteres" }),
-  clientName: z
-    .string()
-    .trim()
-    .max(80, { message: "Máximo 80 caracteres" })
-    .optional()
-    .or(z.literal("")),
-  date: z.number().int().positive(),
-  time: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/, { message: "Formato HH:MM" }),
-  location: z
-    .string()
-    .trim()
-    .max(120, { message: "Máximo 120 caracteres" })
-    .optional()
-    .or(z.literal("")),
-  notes: z
-    .string()
-    .trim()
-    .max(280, { message: "Máximo 280 caracteres" })
-    .optional()
-    .or(z.literal("")),
-  status: eventStatusSchema,
-});
-export type EventInput = z.infer<typeof eventInputSchema>;
-
-export interface AgendaEvent extends EventInput {
-  id: string;
-  clientName: string;
-  location: string;
-  notes: string;
-  createdAt: number;
-}
+export const eventStatusSchema = domainEventStatusSchema;
+export type EventStatus = DomainEventStatus;
+export const eventInputSchema = domainEventInputSchema;
+export type EventInput = DomainEventInput;
+export type AgendaEvent = DomainAgendaEvent;
 
 interface AgendaState {
   events: AgendaEvent[];
@@ -104,8 +77,8 @@ export const useAgendaStore = create<AgendaState>()(
       events: seed,
       createEvent: (data) => {
         const event: AgendaEvent = {
-          id: `ev-${Date.now()}`,
-          createdAt: Date.now(),
+          id: createEntityId("ev"),
+          createdAt: nowTs(),
           ...data,
           clientName: data.clientName ?? "",
           location: data.location ?? "",
@@ -135,7 +108,23 @@ export const useAgendaStore = create<AgendaState>()(
           events: s.events.map((e) => (e.id === id ? { ...e, status } : e)),
         })),
     }),
-    { name: "quanty-agenda-v1" },
+    buildPersistOptions<AgendaState, AgendaPersisted>({
+      name: "quanty-agenda-v1",
+      version: 2,
+      schema: agendaPersistedSchema,
+      fallback: () => ({ events: seed }),
+      partialize: (state) => ({ events: state.events }),
+      migrations: {
+        2: (state) => ({
+          events: state.events.map((e) => ({
+            ...e,
+            clientName: e.clientName ?? "",
+            location: e.location ?? "",
+            notes: e.notes ?? "",
+          })),
+        }),
+      },
+    }),
   ),
 );
 

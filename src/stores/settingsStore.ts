@@ -1,48 +1,20 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { z } from "zod";
+import {
+  preferencesSchema as domainPreferencesSchema,
+  profileSchema as domainProfileSchema,
+  settingsPersistedSchema,
+  type Preferences as DomainPreferences,
+  type Profile as DomainProfile,
+  type SettingsPersisted,
+} from "@/domain/entities";
+import { buildPersistOptions } from "@/lib/persist-helpers";
 
-export const themeSchema = z.enum(["light", "dark", "system"]);
-export type Theme = z.infer<typeof themeSchema>;
-
-export const profileSchema = z.object({
-  fullName: z
-    .string()
-    .trim()
-    .min(2, { message: "Mínimo 2 caracteres" })
-    .max(80, { message: "Máximo 80 caracteres" }),
-  businessName: z
-    .string()
-    .trim()
-    .max(80, { message: "Máximo 80 caracteres" })
-    .optional()
-    .or(z.literal("")),
-  email: z
-    .string()
-    .trim()
-    .email({ message: "Correo inválido" })
-    .max(120)
-    .optional()
-    .or(z.literal("")),
-  phone: z
-    .string()
-    .trim()
-    .max(30, { message: "Máximo 30 caracteres" })
-    .optional()
-    .or(z.literal("")),
-  currency: z.string().min(3).max(5),
-  language: z.enum(["es", "en"]),
-});
-export type Profile = z.infer<typeof profileSchema>;
-
-export const preferencesSchema = z.object({
-  theme: themeSchema,
-  notifyLowStock: z.boolean(),
-  notifyQuoteUpdates: z.boolean(),
-  notifyAgenda: z.boolean(),
-  weeklyDigest: z.boolean(),
-});
-export type Preferences = z.infer<typeof preferencesSchema>;
+export const profileSchema = domainProfileSchema;
+export type Profile = DomainProfile;
+export const preferencesSchema = domainPreferencesSchema;
+export type Preferences = DomainPreferences;
+export type Theme = Preferences["theme"];
 
 interface SettingsState {
   profile: Profile;
@@ -80,6 +52,23 @@ export const useSettingsStore = create<SettingsState>()(
       resetAll: () =>
         set({ profile: defaultProfile, preferences: defaultPreferences }),
     }),
-    { name: "quanty-settings-v1" },
+    buildPersistOptions<SettingsState, SettingsPersisted>({
+      name: "quanty-settings-v1",
+      version: 2,
+      schema: settingsPersistedSchema,
+      fallback: () => ({ profile: defaultProfile, preferences: defaultPreferences }),
+      partialize: (state) => ({ profile: state.profile, preferences: state.preferences }),
+      migrations: {
+        2: (state) => ({
+          profile: {
+            ...state.profile,
+            businessName: state.profile.businessName ?? "",
+            email: state.profile.email ?? "",
+            phone: state.profile.phone ?? "",
+          },
+          preferences: { ...defaultPreferences, ...state.preferences },
+        }),
+      },
+    }),
   ),
 );

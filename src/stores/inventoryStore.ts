@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createEntityId } from "@/domain/common";
+import { inventoryPersistedSchema, type InventoryPersisted } from "@/domain/entities";
 import {
   getAvailability,
   type Product,
@@ -7,6 +9,7 @@ import {
   type Availability,
 } from "@/components/quanty/inventory/types";
 import { seedProducts } from "@/components/quanty/inventory/seed";
+import { buildPersistOptions } from "@/lib/persist-helpers";
 
 interface InventoryState {
   products: Product[];
@@ -24,7 +27,7 @@ export const useInventoryStore = create<InventoryState>()(
         set((s) => ({
           products: [
             {
-              id: `p-${Date.now()}`,
+              id: createEntityId("p"),
               ...data,
               description: data.description ?? "",
               imageUrl: data.imageUrl ?? "",
@@ -56,7 +59,22 @@ export const useInventoryStore = create<InventoryState>()(
           ),
         })),
     }),
-    { name: "quanty-inventory-v1" },
+    buildPersistOptions<InventoryState, InventoryPersisted>({
+      name: "quanty-inventory-v1",
+      version: 2,
+      schema: inventoryPersistedSchema,
+      fallback: () => ({ products: seedProducts }),
+      partialize: (state) => ({ products: state.products }),
+      migrations: {
+        2: (state) => ({
+          products: state.products.map((p) => ({
+            ...p,
+            description: p.description ?? "",
+            imageUrl: p.imageUrl ?? "",
+          })),
+        }),
+      },
+    }),
   ),
 );
 

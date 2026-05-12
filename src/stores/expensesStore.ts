@@ -1,35 +1,22 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { z } from "zod";
+import { createEntityId } from "@/domain/common";
+import {
+  expenseInputSchema as domainExpenseInputSchema,
+  expenseTypeSchema as domainExpenseTypeSchema,
+  expensesPersistedSchema,
+  type Expense as DomainExpense,
+  type ExpenseInput as DomainExpenseInput,
+  type ExpenseType as DomainExpenseType,
+  type ExpensesPersisted,
+} from "@/domain/entities";
+import { buildPersistOptions } from "@/lib/persist-helpers";
 
-export const expenseTypeSchema = z.enum(["fijo", "variable"]);
-export type ExpenseType = z.infer<typeof expenseTypeSchema>;
-
-export const expenseInputSchema = z.object({
-  concept: z
-    .string()
-    .trim()
-    .min(2, { message: "Mínimo 2 caracteres" })
-    .max(80, { message: "Máximo 80 caracteres" }),
-  amount: z
-    .number({ invalid_type_error: "Debe ser un número" })
-    .positive({ message: "Debe ser mayor a 0" })
-    .max(999_999_999),
-  type: expenseTypeSchema,
-  category: z
-    .string()
-    .trim()
-    .max(40, { message: "Máximo 40 caracteres" })
-    .optional()
-    .or(z.literal("")),
-  date: z.number().int().positive(),
-});
-export type ExpenseInput = z.infer<typeof expenseInputSchema>;
-
-export interface Expense extends ExpenseInput {
-  id: string;
-  category: string;
-}
+export const expenseTypeSchema = domainExpenseTypeSchema;
+export type ExpenseType = DomainExpenseType;
+export const expenseInputSchema = domainExpenseInputSchema;
+export type ExpenseInput = DomainExpenseInput;
+export type Expense = DomainExpense;
 
 interface ExpensesState {
   expenses: Expense[];
@@ -90,7 +77,7 @@ export const useExpensesStore = create<ExpensesState>()(
       expenses: seed,
       createExpense: (data) => {
         const expense: Expense = {
-          id: `e-${Date.now()}`,
+          id: createEntityId("e"),
           ...data,
           category: data.category ?? "",
         };
@@ -106,7 +93,21 @@ export const useExpensesStore = create<ExpensesState>()(
       deleteExpense: (id) =>
         set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) })),
     }),
-    { name: "quanty-expenses-v1" },
+    buildPersistOptions<ExpensesState, ExpensesPersisted>({
+      name: "quanty-expenses-v1",
+      version: 2,
+      schema: expensesPersistedSchema,
+      fallback: () => ({ expenses: seed }),
+      partialize: (state) => ({ expenses: state.expenses }),
+      migrations: {
+        2: (state) => ({
+          expenses: state.expenses.map((e) => ({
+            ...e,
+            category: e.category ?? "",
+          })),
+        }),
+      },
+    }),
   ),
 );
 

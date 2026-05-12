@@ -23,6 +23,7 @@ import {
 import { useQuotesStore } from "@/stores/quotesStore";
 import { fmtCOP, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { selectFinancialSummary, selectQuoteCountByStatus } from "@/stores/selectors";
 
 export const Route = createFileRoute("/balance")({
   head: () => ({
@@ -50,24 +51,14 @@ function BalancePage() {
   const [editing, setEditing] = useState<Expense | null>(null);
   const [filter, setFilter] = useState<Filter>("todos");
 
-  const income = useMemo(
-    () => quotes.filter((q) => q.status === "aprobada").reduce((s, q) => s + q.total, 0),
-    [quotes],
-  );
-
-  const fixedTotal = useMemo(
-    () => expenses.filter((e) => e.type === "fijo").reduce((s, e) => s + e.amount, 0),
-    [expenses],
-  );
-
-  const variableTotal = useMemo(
-    () => expenses.filter((e) => e.type === "variable").reduce((s, e) => s + e.amount, 0),
-    [expenses],
-  );
-
-  const totalExpenses = fixedTotal + variableTotal;
-  const profit = income - totalExpenses;
-  const margin = income > 0 ? (profit / income) * 100 : 0;
+  const summary = useMemo(() => selectFinancialSummary(quotes, expenses), [quotes, expenses]);
+  const quoteByStatus = useMemo(() => selectQuoteCountByStatus(quotes), [quotes]);
+  const income = summary.income;
+  const fixedTotal = summary.fixed;
+  const variableTotal = summary.variable;
+  const totalExpenses = summary.total;
+  const profit = summary.profit;
+  const margin = summary.margin;
 
   const filtered = useMemo(() => {
     const list = filter === "todos" ? expenses : expenses.filter((e) => e.type === filter);
@@ -101,7 +92,7 @@ function BalancePage() {
         <KpiCard
           label="Ingresos aprobados"
           value={fmtCOP.format(income)}
-          hint={`${quotes.filter((q) => q.status === "aprobada").length} cotizaciones`}
+          hint={`${quoteByStatus.aprobada} cotizaciones`}
           icon={TrendingUp}
           accent="success"
         />

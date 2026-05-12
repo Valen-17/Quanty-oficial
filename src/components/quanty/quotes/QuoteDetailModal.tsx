@@ -5,7 +5,6 @@ import {
   useQuotesStore,
   type Quote,
 } from "@/stores/quotesStore";
-import { useInventoryStore } from "@/stores/inventoryStore";
 import { fmtCOP, fmtDate } from "@/lib/format";
 import { downloadQuotePdf } from "@/lib/quotePdf";
 import { cn } from "@/lib/utils";
@@ -18,9 +17,9 @@ interface Props {
 
 export function QuoteDetailModal({ quote, onClose }: Props) {
   const setStatus = useQuotesStore((s) => s.setStatus);
+  const approveQuote = useQuotesStore((s) => s.approveQuote);
+  const getApprovalIssues = useQuotesStore((s) => s.getApprovalIssues);
   const deleteQuote = useQuotesStore((s) => s.deleteQuote);
-  const adjustStock = useInventoryStore((s) => s.adjustStock);
-  const products = useInventoryStore((s) => s.products);
 
   useEffect(() => {
     if (!quote) return;
@@ -34,13 +33,7 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
   const canApprove = quote.status !== "aprobada" && quote.status !== "rechazada";
 
   // Verifica si hay stock suficiente para aprobar
-  const stockProblems = quote.items
-    .map((i) => {
-      const p = products.find((x) => x.id === i.productId);
-      const available = p?.units ?? 0;
-      return available < i.quantity ? { name: i.name, available, needed: i.quantity } : null;
-    })
-    .filter(Boolean) as { name: string; available: number; needed: number }[];
+  const stockProblems = getApprovalIssues(quote.id);
 
   const handleApprove = () => {
     if (stockProblems.length > 0) {
@@ -53,11 +46,10 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
       return;
     }
     if (!confirm("Aprobar cotización y descontar stock del inventario?")) return;
-    // Descuenta stock por cada item
-    for (const it of quote.items) {
-      adjustStock(it.productId, -it.quantity);
+    const result = approveQuote(quote.id);
+    if (!result.ok && result.error) {
+      alert(result.error);
     }
-    setStatus(quote.id, "aprobada");
   };
 
   const handleSend = () => setStatus(quote.id, "enviada");
