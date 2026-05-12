@@ -13,11 +13,13 @@ import {
 } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { EventFormModal } from "@/components/quanty/agenda/EventFormModal";
+import { isRemoteAgendaEventId } from "@/repositories/agenda.repository";
 import {
   eventStatusLabel,
   eventStatusStyles,
   useAgendaStore,
   type AgendaEvent,
+  type EventInput,
   type EventStatus,
 } from "@/stores/agendaStore";
 import { cn } from "@/lib/utils";
@@ -37,8 +39,18 @@ export const Route = createFileRoute("/agenda")({
 
 const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MONTHS = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
 ];
 
 function startOfDay(ts: number) {
@@ -74,6 +86,11 @@ function AgendaPage() {
   const updateEvent = useAgendaStore((s) => s.updateEvent);
   const deleteEvent = useAgendaStore((s) => s.deleteEvent);
   const setEventStatus = useAgendaStore((s) => s.setStatus);
+  const createAgendaEventOnRemote = useAgendaStore((s) => s.createAgendaEventOnRemote);
+  const updateAgendaEventOnRemote = useAgendaStore((s) => s.updateAgendaEventOnRemote);
+  const softDeleteAgendaEventOnRemote = useAgendaStore((s) => s.softDeleteAgendaEventOnRemote);
+  const remoteAgendaError = useAgendaStore((s) => s.remoteAgendaError);
+  const clearRemoteAgendaError = useAgendaStore((s) => s.clearRemoteAgendaError);
 
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
@@ -124,12 +141,34 @@ function AgendaPage() {
   };
 
   const openNew = () => {
+    clearRemoteAgendaError();
     setEditing(null);
     setOpen(true);
   };
   const openEdit = (e: AgendaEvent) => {
+    clearRemoteAgendaError();
     setEditing(e);
     setOpen(true);
+  };
+
+  const handleSubmitEvent = async (data: EventInput) => {
+    if (editing) {
+      if (isRemoteAgendaEventId(editing.id)) {
+        return await updateAgendaEventOnRemote({
+          ...editing,
+          ...data,
+          clientName: data.clientName ?? "",
+          location: data.location ?? "",
+          notes: data.notes ?? "",
+        });
+      }
+      updateEvent(editing.id, data);
+      return true;
+    }
+    const createdRemote = await createAgendaEventOnRemote(data);
+    if (createdRemote) return true;
+    createEvent(data);
+    return true;
   };
 
   const todayKey = startOfDay(Date.now());
@@ -155,6 +194,22 @@ function AgendaPage() {
         </>
       }
     >
+      {remoteAgendaError && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
+          <p className="min-w-0 flex-1">{remoteAgendaError}</p>
+          <button
+            type="button"
+            onClick={() => clearRemoteAgendaError()}
+            className="shrink-0 font-semibold underline underline-offset-2 hover:opacity-80"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] xl:col-span-2">
           <div className="mb-4 flex items-center justify-between">
@@ -186,7 +241,9 @@ function AgendaPage() {
 
           <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             {WEEKDAYS.map((d) => (
-              <div key={d} className="py-1">{d}</div>
+              <div key={d} className="py-1">
+                {d}
+              </div>
             ))}
           </div>
 
@@ -247,7 +304,9 @@ function AgendaPage() {
           <h2 className="font-display text-lg font-bold text-foreground">Próximos</h2>
           <p className="text-xs text-muted-foreground">5 compromisos más cercanos</p>
           {upcoming.length === 0 ? (
-            <p className="mt-6 text-center text-sm text-muted-foreground">Sin próximos compromisos.</p>
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Sin próximos compromisos.
+            </p>
           ) : (
             <ul className="mt-4 space-y-3">
               {upcoming.map((e) => (
@@ -316,9 +375,7 @@ function AgendaPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <CalendarDays className="h-6 w-6" />
             </div>
-            <p className="font-display text-base font-bold text-foreground">
-              Día libre
-            </p>
+            <p className="font-display text-base font-bold text-foreground">Día libre</p>
             <p className="max-w-sm text-sm text-muted-foreground">
               No tienes compromisos programados para esta fecha.
             </p>
@@ -326,7 +383,10 @@ function AgendaPage() {
         ) : (
           <ul className="divide-y divide-border">
             {dayEvents.map((e) => (
-              <li key={e.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
+              <li
+                key={e.id}
+                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:px-6"
+              >
                 <div className="flex min-w-0 flex-1 items-start gap-3">
                   <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Clock className="h-4 w-4" />
@@ -358,15 +418,20 @@ function AgendaPage() {
                         </span>
                       )}
                     </div>
-                    {e.notes && (
-                      <p className="mt-1.5 text-xs text-muted-foreground">{e.notes}</p>
-                    )}
+                    {e.notes && <p className="mt-1.5 text-xs text-muted-foreground">{e.notes}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 sm:flex-col sm:items-stretch">
                   <select
                     value={e.status}
-                    onChange={(ev) => setEventStatus(e.id, ev.target.value as EventStatus)}
+                    onChange={(ev) => {
+                      const status = ev.target.value as EventStatus;
+                      if (isRemoteAgendaEventId(e.id)) {
+                        void updateAgendaEventOnRemote({ ...e, status });
+                      } else {
+                        setEventStatus(e.id, status);
+                      }
+                    }}
                     className="rounded-md border border-input bg-background px-2 py-1 text-xs"
                   >
                     {(Object.keys(eventStatusLabel) as EventStatus[]).map((s) => (
@@ -385,7 +450,12 @@ function AgendaPage() {
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm(`¿Eliminar "${e.title}"?`)) deleteEvent(e.id);
+                        if (!confirm(`¿Eliminar "${e.title}"?`)) return;
+                        if (isRemoteAgendaEventId(e.id)) {
+                          void softDeleteAgendaEventOnRemote(e.id);
+                        } else {
+                          deleteEvent(e.id);
+                        }
                       }}
                       className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       aria-label="Eliminar"
@@ -405,10 +475,7 @@ function AgendaPage() {
         initial={editing}
         defaultDate={selectedDay}
         onClose={() => setOpen(false)}
-        onSubmit={(data) => {
-          if (editing) updateEvent(editing.id, data);
-          else createEvent(data);
-        }}
+        onSubmit={handleSubmitEvent}
       />
     </AppLayout>
   );

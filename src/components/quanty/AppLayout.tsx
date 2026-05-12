@@ -4,6 +4,7 @@ import { DesktopSidebar, MobileSidebar } from "./Sidebar";
 import { RequireAuth } from "./RouteGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { useRemoteBootstrapStore } from "@/stores/remoteBootstrapStore";
 
 interface AppLayoutProps {
   title: string;
@@ -36,6 +37,7 @@ function AppLayoutInner({ title, subtitle, actions, children }: AppLayoutProps) 
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { displayName, profile } = useProfile();
+  const isHydratingRemoteData = useRemoteBootstrapStore((s) => s.isHydratingRemoteData);
 
   const initials = getInitials(displayName, user?.email);
   const avatarUrl = profile?.avatar_url || null;
@@ -46,7 +48,14 @@ function AppLayoutInner({ title, subtitle, actions, children }: AppLayoutProps) 
       <MobileSidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6 lg:px-8 relative">
+          {isHydratingRemoteData && (
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 bg-primary/60 motion-safe:animate-pulse"
+              role="status"
+              aria-label="Sincronizando datos"
+            />
+          )}
           <button
             onClick={() => setMobileOpen(true)}
             className="rounded-md p-2 text-foreground hover:bg-muted lg:hidden"
@@ -60,19 +69,23 @@ function AppLayoutInner({ title, subtitle, actions, children }: AppLayoutProps) 
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="search"
-                placeholder="Buscar productos, clientes…"
-                className="w-full rounded-lg border border-input bg-secondary/50 py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-ring focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/20"
+                disabled
+                title="Próximamente"
+                placeholder="Próximamente"
+                className="w-full cursor-not-allowed rounded-lg border border-input bg-secondary/50 py-2 pl-9 pr-3 text-sm text-muted-foreground opacity-70"
               />
             </div>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
             <button
-              className="relative rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Notificaciones"
+              type="button"
+              disabled
+              title="Próximamente"
+              className="relative cursor-not-allowed rounded-md p-2 text-muted-foreground opacity-60"
+              aria-label="Notificaciones (próximamente)"
             >
               <Bell className="h-5 w-5" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
             </button>
 
             <div className="relative">
@@ -89,18 +102,13 @@ function AppLayoutInner({ title, subtitle, actions, children }: AppLayoutProps) 
               </button>
               {menuOpen && (
                 <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setMenuOpen(false)}
-                  />
+                  <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
                   <div className="absolute right-0 top-11 z-40 w-60 overflow-hidden rounded-xl border border-border bg-popover shadow-[var(--shadow-card)]">
                     <div className="border-b border-border px-3 py-3">
                       <p className="truncate text-sm font-semibold text-foreground">
                         {displayName}
                       </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {user?.email}
-                      </p>
+                      <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
                     </div>
                     <button
                       onClick={async () => {

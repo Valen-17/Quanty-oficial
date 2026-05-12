@@ -9,6 +9,7 @@ import {
   type SettingsPersisted,
 } from "@/domain/entities";
 import { buildPersistOptions } from "@/lib/persist-helpers";
+import { createScopedJsonStorage } from "@/lib/scoped-persist-storage";
 
 export const profileSchema = domainProfileSchema;
 export type Profile = DomainProfile;
@@ -25,10 +26,10 @@ interface SettingsState {
 }
 
 const defaultProfile: Profile = {
-  fullName: "Isabella Arango",
-  businessName: "Diseños Quanty",
-  email: "isabella@quanty.app",
-  phone: "+57 300 555 0000",
+  fullName: "Tu cuenta",
+  businessName: "",
+  email: "",
+  phone: "",
   currency: "COP",
   language: "es",
 };
@@ -47,28 +48,29 @@ export const useSettingsStore = create<SettingsState>()(
       profile: defaultProfile,
       preferences: defaultPreferences,
       updateProfile: (data) => set({ profile: data }),
-      updatePreferences: (data) =>
-        set((s) => ({ preferences: { ...s.preferences, ...data } })),
-      resetAll: () =>
-        set({ profile: defaultProfile, preferences: defaultPreferences }),
+      updatePreferences: (data) => set((s) => ({ preferences: { ...s.preferences, ...data } })),
+      resetAll: () => set({ profile: defaultProfile, preferences: defaultPreferences }),
     }),
-    buildPersistOptions<SettingsState, SettingsPersisted>({
-      name: "quanty-settings-v1",
-      version: 2,
-      schema: settingsPersistedSchema,
-      fallback: () => ({ profile: defaultProfile, preferences: defaultPreferences }),
-      partialize: (state) => ({ profile: state.profile, preferences: state.preferences }),
-      migrations: {
-        2: (state) => ({
-          profile: {
-            ...state.profile,
-            businessName: state.profile.businessName ?? "",
-            email: state.profile.email ?? "",
-            phone: state.profile.phone ?? "",
-          },
-          preferences: { ...defaultPreferences, ...state.preferences },
-        }),
-      },
-    }),
+    {
+      ...buildPersistOptions<SettingsState, SettingsPersisted>({
+        name: "quanty-settings-v1",
+        version: 2,
+        schema: settingsPersistedSchema,
+        fallback: () => ({ profile: defaultProfile, preferences: defaultPreferences }),
+        partialize: (state) => ({ profile: state.profile, preferences: state.preferences }),
+        migrations: {
+          2: (state) => ({
+            profile: {
+              ...state.profile,
+              businessName: state.profile.businessName ?? "",
+              email: state.profile.email ?? "",
+              phone: state.profile.phone ?? "",
+            },
+            preferences: { ...defaultPreferences, ...state.preferences },
+          }),
+        },
+      }),
+      storage: createScopedJsonStorage(),
+    },
   ),
 );

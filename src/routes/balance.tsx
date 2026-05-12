@@ -18,11 +18,13 @@ import {
   expenseTypeStyles,
   useExpensesStore,
   type Expense,
+  type ExpenseInput,
   type ExpenseType,
 } from "@/stores/expensesStore";
 import { useQuotesStore } from "@/stores/quotesStore";
 import { fmtCOP, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { isRemoteExpenseId } from "@/repositories/expenses.repository";
 import { selectFinancialSummary, selectQuoteCountByStatus } from "@/stores/selectors";
 
 export const Route = createFileRoute("/balance")({
@@ -45,6 +47,11 @@ function BalancePage() {
   const createExpense = useExpensesStore((s) => s.createExpense);
   const updateExpense = useExpensesStore((s) => s.updateExpense);
   const deleteExpense = useExpensesStore((s) => s.deleteExpense);
+  const createExpenseOnRemote = useExpensesStore((s) => s.createExpenseOnRemote);
+  const updateExpenseOnRemote = useExpensesStore((s) => s.updateExpenseOnRemote);
+  const softDeleteExpenseOnRemote = useExpensesStore((s) => s.softDeleteExpenseOnRemote);
+  const remoteExpensesError = useExpensesStore((s) => s.remoteExpensesError);
+  const clearRemoteExpensesError = useExpensesStore((s) => s.clearRemoteExpensesError);
   const quotes = useQuotesStore((s) => s.quotes);
 
   const [open, setOpen] = useState(false);
@@ -66,13 +73,29 @@ function BalancePage() {
   }, [expenses, filter]);
 
   const openNew = () => {
+    clearRemoteExpensesError();
     setEditing(null);
     setOpen(true);
   };
 
   const openEdit = (e: Expense) => {
+    clearRemoteExpensesError();
     setEditing(e);
     setOpen(true);
+  };
+
+  const handleSubmitExpense = async (data: ExpenseInput) => {
+    if (editing) {
+      if (isRemoteExpenseId(editing.id)) {
+        return await updateExpenseOnRemote(editing.id, data);
+      }
+      updateExpense(editing.id, data);
+      return true;
+    }
+    const created = await createExpenseOnRemote(data);
+    if (created) return true;
+    createExpense(data);
+    return true;
   };
 
   return (
@@ -88,6 +111,22 @@ function BalancePage() {
         </button>
       }
     >
+      {remoteExpensesError && !open && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
+          <p className="min-w-0 flex-1">{remoteExpensesError}</p>
+          <button
+            type="button"
+            onClick={() => clearRemoteExpensesError()}
+            className="shrink-0 font-semibold underline underline-offset-2 hover:opacity-80"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Ingresos aprobados"
@@ -167,9 +206,7 @@ function BalancePage() {
           <div className="mt-4 space-y-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Ingresos</span>
-              <span className="font-mono font-semibold text-success">
-                +{fmtCOP.format(income)}
-              </span>
+              <span className="font-mono font-semibold text-success">+{fmtCOP.format(income)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Egresos</span>
@@ -264,9 +301,7 @@ function BalancePage() {
                         {expenseTypeLabel[e.type]}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-muted-foreground sm:px-6">
-                      {e.category || "—"}
-                    </td>
+                    <td className="px-5 py-3 text-muted-foreground sm:px-6">{e.category || "—"}</td>
                     <td className="px-5 py-3 text-muted-foreground sm:px-6">
                       {fmtDate.format(e.date)}
                     </td>
@@ -284,7 +319,12 @@ function BalancePage() {
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`¿Eliminar "${e.concept}"?`)) deleteExpense(e.id);
+                            if (!confirm(`¿Eliminar "${e.concept}"?`)) return;
+                            if (isRemoteExpenseId(e.id)) {
+                              void softDeleteExpenseOnRemote(e.id);
+                            } else {
+                              deleteExpense(e.id);
+                            }
                           }}
                           className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           aria-label="Eliminar"
@@ -304,11 +344,11 @@ function BalancePage() {
       <ExpenseFormModal
         open={open}
         initial={editing}
-        onClose={() => setOpen(false)}
-        onSubmit={(data) => {
-          if (editing) updateExpense(editing.id, data);
-          else createExpense(data);
+        onClose={() => {
+          clearRemoteExpensesError();
+          setOpen(false);
         }}
+        onSubmit={handleSubmitExpense}
       />
     </AppLayout>
   );

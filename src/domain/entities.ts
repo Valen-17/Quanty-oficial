@@ -10,12 +10,10 @@ export const productSchema = z.object({
   threshold: z.number().int().min(1).max(9_999),
   imageUrl: z.string().max(2_000_000),
 });
-export const productInputSchema = productSchema
-  .omit({ id: true })
-  .extend({
-    description: z.string().trim().max(240).or(z.literal("")).default(""),
-    imageUrl: z.string().max(2_000_000).or(z.literal("")).default(""),
-  });
+export const productInputSchema = productSchema.omit({ id: true }).extend({
+  description: z.string().trim().max(240).or(z.literal("")).default(""),
+  imageUrl: z.string().max(2_000_000).or(z.literal("")).default(""),
+});
 export type Product = z.infer<typeof productSchema>;
 export type ProductInput = z.infer<typeof productInputSchema>;
 
@@ -71,6 +69,21 @@ export type QuoteItem = z.infer<typeof quoteItemSchema>;
 export type Quote = z.infer<typeof quoteSchema>;
 export type QuoteInput = z.infer<typeof quoteInputSchema>;
 
+/** Normaliza ítems y snapshots como en el store local (UI / persistencia). */
+export function normalizeQuoteInputItems(items: QuoteInput["items"]): QuoteItem[] {
+  return items.map((item) => {
+    const productNameSnapshot = item.productNameSnapshot ?? item.name;
+    const unitPriceSnapshot = item.unitPriceSnapshot ?? item.unitPrice;
+    return {
+      ...item,
+      productNameSnapshot,
+      unitPriceSnapshot,
+      name: productNameSnapshot,
+      unitPrice: unitPriceSnapshot,
+    };
+  });
+}
+
 export const expenseTypeSchema = z.enum(["fijo", "variable"]);
 export const expenseSchema = z.object({
   id: idSchema,
@@ -90,6 +103,10 @@ export const agendaEventSchema = z.object({
   id: idSchema,
   title: z.string().trim().min(2).max(80),
   clientName: z.string().trim().max(80).or(z.literal("")),
+  /** Opcional: vínculo remoto a cliente (UUID). Eventos legacy no lo tienen. */
+  clientId: z.string().trim().min(1).optional(),
+  /** Opcional: vínculo remoto a cotización (UUID). */
+  quoteId: z.string().trim().min(1).optional(),
   date: timestampSchema,
   time: z.string().regex(/^\d{2}:\d{2}$/),
   location: z.string().trim().max(120).or(z.literal("")),

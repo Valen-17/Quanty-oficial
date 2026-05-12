@@ -20,8 +20,10 @@ import {
   type Product,
   type ProductInput,
 } from "@/components/quanty/inventory/types";
-import { useInventoryStore } from "@/stores/inventoryStore";
+import { fmtCOP } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { isRemoteProductId } from "@/repositories/products.repository";
+import { useInventoryStore } from "@/stores/inventoryStore";
 
 export const Route = createFileRoute("/inventario")({
   head: () => ({
@@ -45,14 +47,16 @@ const filters: { id: Filter; label: string }[] = [
   { id: "agotado", label: "Agotado" },
 ];
 
-import { fmtCOP } from "@/lib/format";
-
 function InventarioPage() {
   const products = useInventoryStore((s) => s.products);
-  const addProduct = useInventoryStore((s) => s.addProduct);
+  const createProductOnRemote = useInventoryStore((s) => s.createProductOnRemote);
+  const updateProductOnRemote = useInventoryStore((s) => s.updateProductOnRemote);
+  const softDeleteProductOnRemote = useInventoryStore((s) => s.softDeleteProductOnRemote);
   const updateProduct = useInventoryStore((s) => s.updateProduct);
   const deleteProduct = useInventoryStore((s) => s.deleteProduct);
   const adjustStock = useInventoryStore((s) => s.adjustStock);
+  const remoteProductsError = useInventoryStore((s) => s.remoteProductsError);
+  const clearRemoteProductsError = useInventoryStore((s) => s.clearRemoteProductsError);
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("todos");
@@ -80,22 +84,34 @@ function InventarioPage() {
     [products],
   );
 
-  const handleSubmit = (data: ProductInput, id?: string) => {
-    if (id) updateProduct(id, data);
-    else addProduct(data);
+  const handleSubmit = async (data: ProductInput, id?: string) => {
+    if (id && isRemoteProductId(id)) {
+      return await updateProductOnRemote(id, data);
+    }
+    if (id) {
+      updateProduct(id, data);
+      return true;
+    }
+    const created = await createProductOnRemote(data);
+    return created !== null;
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("¿Eliminar este producto del inventario?")) {
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Eliminar este producto del inventario?")) return;
+    if (isRemoteProductId(id)) {
+      await softDeleteProductOnRemote(id);
+    } else {
       deleteProduct(id);
     }
   };
 
   const openNew = () => {
+    clearRemoteProductsError();
     setEditing(null);
     setModalOpen(true);
   };
   const openEdit = (p: Product) => {
+    clearRemoteProductsError();
     setEditing(p);
     setModalOpen(true);
   };
@@ -113,6 +129,22 @@ function InventarioPage() {
         </button>
       }
     >
+      {remoteProductsError && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
+          <p className="min-w-0 flex-1">{remoteProductsError}</p>
+          <button
+            type="button"
+            onClick={() => clearRemoteProductsError()}
+            className="shrink-0 font-semibold underline underline-offset-2 hover:opacity-80"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       {/* Resumen rápido */}
       <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryStat label="Total productos" value={products.length.toString()} />
@@ -266,7 +298,10 @@ function InventarioPage() {
       <ProductFormModal
         open={modalOpen}
         initial={editing}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          clearRemoteProductsError();
+        }}
         onSubmit={handleSubmit}
       />
     </AppLayout>

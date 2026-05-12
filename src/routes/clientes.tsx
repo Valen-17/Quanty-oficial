@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Plus, Search, Users, Mail, Phone, Building2, Pencil, Trash2, FileText } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { ClientFormModal } from "@/components/quanty/clients/ClientFormModal";
+import { isRemoteClientId } from "@/repositories/clients.repository";
 import { useClientsStore, type Client, type ClientInput } from "@/stores/clientsStore";
 import { useQuotesStore } from "@/stores/quotesStore";
 import { fmtCOP, fmtDate } from "@/lib/format";
@@ -23,9 +24,13 @@ export const Route = createFileRoute("/clientes")({
 
 function ClientesPage() {
   const clients = useClientsStore((s) => s.clients);
-  const createClient = useClientsStore((s) => s.createClient);
+  const createClientOnRemote = useClientsStore((s) => s.createClientOnRemote);
+  const updateClientOnRemote = useClientsStore((s) => s.updateClientOnRemote);
+  const softDeleteClientOnRemote = useClientsStore((s) => s.softDeleteClientOnRemote);
   const updateClient = useClientsStore((s) => s.updateClient);
   const deleteClient = useClientsStore((s) => s.deleteClient);
+  const remoteClientsError = useClientsStore((s) => s.remoteClientsError);
+  const clearRemoteClientsError = useClientsStore((s) => s.clearRemoteClientsError);
   const quotes = useQuotesStore((s) => s.quotes);
 
   const [query, setQuery] = useState("");
@@ -58,19 +63,28 @@ function ClientesPage() {
   }, [clients, query]);
 
   const openNew = () => {
+    clearRemoteClientsError();
     setEditing(null);
     setModalOpen(true);
   };
   const openEdit = (c: Client) => {
+    clearRemoteClientsError();
     setEditing(c);
     setModalOpen(true);
   };
-  const handleSubmit = (data: ClientInput) => {
-    if (editing) updateClient(editing.id, data);
-    else createClient(data);
-    setModalOpen(false);
-    setEditing(null);
+  const handleSubmit = async (data: ClientInput) => {
+    if (editing) {
+      if (isRemoteClientId(editing.id)) {
+        return await updateClientOnRemote(editing.id, data);
+      }
+      updateClient(editing.id, data);
+      return true;
+    }
+    const created = await createClientOnRemote(data);
+    return created !== null;
   };
+
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   return (
     <AppLayout
@@ -85,6 +99,22 @@ function ClientesPage() {
         </button>
       }
     >
+      {remoteClientsError && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
+          <p className="min-w-0 flex-1">{remoteClientsError}</p>
+          <button
+            type="button"
+            onClick={() => clearRemoteClientsError()}
+            className="shrink-0 font-semibold underline underline-offset-2 hover:opacity-80"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Clientes" value={clients.length.toString()} />
         <Stat
@@ -231,6 +261,7 @@ function ClientesPage() {
         onClose={() => {
           setModalOpen(false);
           setEditing(null);
+          clearRemoteClientsError();
         }}
         onSubmit={handleSubmit}
       />
@@ -260,13 +291,25 @@ function ClientesPage() {
                 Cancelar
               </button>
               <button
-                onClick={() => {
-                  deleteClient(confirmDelete.id);
-                  setConfirmDelete(null);
+                onClick={async () => {
+                  if (!confirmDelete) return;
+                  setDeleteBusy(true);
+                  try {
+                    if (isRemoteClientId(confirmDelete.id)) {
+                      const ok = await softDeleteClientOnRemote(confirmDelete.id);
+                      if (ok) setConfirmDelete(null);
+                    } else {
+                      deleteClient(confirmDelete.id);
+                      setConfirmDelete(null);
+                    }
+                  } finally {
+                    setDeleteBusy(false);
+                  }
                 }}
-                className="rounded-lg bg-destructive px-3 py-2 text-sm font-semibold text-destructive-foreground hover:opacity-90"
+                disabled={deleteBusy}
+                className="rounded-lg bg-destructive px-3 py-2 text-sm font-semibold text-destructive-foreground hover:opacity-90 disabled:pointer-events-none disabled:opacity-60"
               >
-                Eliminar
+                {deleteBusy ? "Eliminando…" : "Eliminar"}
               </button>
             </div>
           </div>

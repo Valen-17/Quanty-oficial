@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Wallet, Package, ShoppingBag, FileClock, Plus, FileText } from "lucide-react";
+import { Wallet, Package, ShoppingBag, FileClock, Plus, FileText, TrendingUp } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { KpiCard } from "@/components/quanty/KpiCard";
 import { RevenueChart } from "@/components/quanty/RevenueChart";
@@ -12,6 +12,7 @@ import {
   selectInventoryValue,
   useInventoryStore,
 } from "@/stores/inventoryStore";
+import { useExpensesStore } from "@/stores/expensesStore";
 import {
   quoteStatusLabel,
   quoteStatusStyles,
@@ -46,18 +47,28 @@ function DashboardPage() {
   const inventoryValue = useInventoryStore(selectInventoryValue);
   const inventoryCount = useInventoryStore(selectInventoryCount);
   const quotes = useQuotesStore((s) => s.quotes);
-  const createQuote = useQuotesStore((s) => s.createQuote);
+  const expenses = useExpensesStore((s) => s.expenses);
+  const createQuoteOnRemote = useQuotesStore((s) => s.createQuoteOnRemote);
+  const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
+  const clearRemoteQuotesError = useQuotesStore((s) => s.clearRemoteQuotesError);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [openQuote, setOpenQuote] = useState<Quote | null>(null);
   const { displayName } = useProfile();
-  const greetName = firstName(displayName) || "ahí";
+  const rawGreet = firstName(displayName);
+  const greetName = !rawGreet || displayName.trim() === "Tu cuenta" ? "ahí" : rawGreet;
 
-  const liveOpenQuote = openQuote ? quotes.find((q) => q.id === openQuote.id) ?? null : null;
+  const liveOpenQuote = openQuote ? (quotes.find((q) => q.id === openQuote.id) ?? null) : null;
 
-  const handleCreate = (data: QuoteInput) => {
-    const q = createQuote(data);
-    setQuoteModalOpen(false);
+  const handleCreate = async (data: QuoteInput) => {
+    const q = await createQuoteOnRemote(data);
+    if (!q) return false;
     setOpenQuote(q);
+    return true;
+  };
+
+  const openQuoteModal = () => {
+    clearRemoteQuotesError();
+    setQuoteModalOpen(true);
   };
 
   const recentQuotes = useMemo(
@@ -69,17 +80,27 @@ function DashboardPage() {
   const approvedTotal = useMemo(() => selectApprovedIncome(quotes), [quotes]);
   const quoteByStatus = useMemo(() => selectQuoteCountByStatus(quotes), [quotes]);
 
+  const financeEmpty = useMemo(
+    () => expenses.length === 0 && !quotes.some((q) => q.status === "aprobada"),
+    [expenses, quotes],
+  );
+
   return (
     <AppLayout
       title={`Hola, ${greetName} 👋`}
       subtitle="Este es el resumen de tu negocio en tiempo real."
       actions={
         <>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
+          <button
+            type="button"
+            disabled
+            title="Próximamente"
+            className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-muted-foreground opacity-70"
+          >
             Exportar
           </button>
           <button
-            onClick={() => setQuoteModalOpen(true)}
+            onClick={openQuoteModal}
             className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:-translate-y-0.5"
           >
             <Plus className="h-4 w-4" /> Nueva cotización
@@ -87,6 +108,22 @@ function DashboardPage() {
         </>
       }
     >
+      {remoteQuotesError && !quoteModalOpen && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
+          <p className="min-w-0 flex-1">{remoteQuotesError}</p>
+          <button
+            type="button"
+            onClick={() => clearRemoteQuotesError()}
+            className="shrink-0 font-semibold underline underline-offset-2 hover:opacity-80"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Ingresos aprobados"
@@ -120,7 +157,34 @@ function DashboardPage() {
 
       <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <RevenueChart />
+          {financeEmpty ? (
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-foreground">
+                    Balance financiero
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Ingresos vs. gastos últimos 9 meses
+                  </p>
+                </div>
+              </div>
+              <div className="flex min-h-[18rem] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+                <p className="font-display text-base font-bold text-foreground">
+                  Aún no hay movimientos financieros registrados.
+                </p>
+                <p className="max-w-md text-sm text-muted-foreground">
+                  Cuando registres gastos en Balance o apruebes cotizaciones, verás aquí la
+                  evolución de ingresos y egresos.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <RevenueChart />
+          )}
         </div>
 
         <LowStockPanel />
@@ -134,10 +198,7 @@ function DashboardPage() {
             </h2>
             <p className="text-sm text-muted-foreground">Últimos movimientos comerciales</p>
           </div>
-          <Link
-            to="/cotizaciones"
-            className="text-sm font-semibold text-primary hover:underline"
-          >
+          <Link to="/cotizaciones" className="text-sm font-semibold text-primary hover:underline">
             Ver todas
           </Link>
         </div>
@@ -210,7 +271,10 @@ function DashboardPage() {
 
       <QuoteFormModal
         open={quoteModalOpen}
-        onClose={() => setQuoteModalOpen(false)}
+        onClose={() => {
+          setQuoteModalOpen(false);
+          clearRemoteQuotesError();
+        }}
         onCreated={handleCreate}
       />
       <QuoteDetailModal quote={liveOpenQuote} onClose={() => setOpenQuote(null)} />

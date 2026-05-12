@@ -5,10 +5,11 @@ import {
   useQuotesStore,
   type Quote,
 } from "@/stores/quotesStore";
+import { isRemoteQuoteId } from "@/repositories/quotes.repository";
 import { fmtCOP, fmtDate } from "@/lib/format";
 import { downloadQuotePdf } from "@/lib/quotePdf";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   quote: Quote | null;
@@ -18,8 +19,19 @@ interface Props {
 export function QuoteDetailModal({ quote, onClose }: Props) {
   const setStatus = useQuotesStore((s) => s.setStatus);
   const approveQuote = useQuotesStore((s) => s.approveQuote);
+  const approveQuoteOnRemote = useQuotesStore((s) => s.approveQuoteOnRemote);
   const getApprovalIssues = useQuotesStore((s) => s.getApprovalIssues);
   const deleteQuote = useQuotesStore((s) => s.deleteQuote);
+  const updateQuoteOnRemote = useQuotesStore((s) => s.updateQuoteOnRemote);
+  const softDeleteQuoteOnRemote = useQuotesStore((s) => s.softDeleteQuoteOnRemote);
+  const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
+  const clearRemoteQuotesError = useQuotesStore((s) => s.clearRemoteQuotesError);
+
+  const [actionBusy, setActionBusy] = useState(false);
+
+  useEffect(() => {
+    clearRemoteQuotesError();
+  }, [quote?.id, clearRemoteQuotesError]);
 
   useEffect(() => {
     if (!quote) return;
@@ -35,7 +47,8 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
   // Verifica si hay stock suficiente para aprobar
   const stockProblems = getApprovalIssues(quote.id);
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
+    if (actionBusy) return;
     if (stockProblems.length > 0) {
       alert(
         "Stock insuficiente para:\n" +
@@ -45,27 +58,88 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
       );
       return;
     }
-    if (!confirm("Aprobar cotización y descontar stock del inventario?")) return;
-    const result = approveQuote(quote.id);
-    if (!result.ok && result.error) {
-      alert(result.error);
+    setActionBusy(true);
+    if (!confirm("Aprobar cotización y descontar stock del inventario?")) {
+      setActionBusy(false);
+      return;
+    }
+    try {
+      if (isRemoteQuoteId(quote.id)) {
+        const r = await approveQuoteOnRemote(quote.id);
+        if (!r.ok && r.error) alert(r.error);
+      } else {
+        const result = approveQuote(quote.id);
+        if (!result.ok && result.error) {
+          alert(result.error);
+        }
+      }
+    } finally {
+      setActionBusy(false);
     }
   };
 
-  const handleSend = () => setStatus(quote.id, "enviada");
-  const handleReject = () => {
-    if (confirm("¿Marcar como rechazada?")) setStatus(quote.id, "rechazada");
+  const handleSend = async () => {
+    if (actionBusy) return;
+    setActionBusy(true);
+    try {
+      if (isRemoteQuoteId(quote.id)) {
+        const ok = await updateQuoteOnRemote({ ...quote, status: "enviada" });
+        if (!ok) return;
+      } else {
+        setStatus(quote.id, "enviada");
+      }
+    } finally {
+      setActionBusy(false);
+    }
   };
-  const handleDelete = () => {
-    if (confirm("¿Eliminar esta cotización? Esta acción no se puede deshacer.")) {
-      deleteQuote(quote.id);
+  const handleReject = async () => {
+    if (actionBusy) return;
+    setActionBusy(true);
+    if (!confirm("¿Marcar como rechazada?")) {
+      setActionBusy(false);
+      return;
+    }
+    try {
+      if (isRemoteQuoteId(quote.id)) {
+        const ok = await updateQuoteOnRemote({ ...quote, status: "rechazada" });
+        if (!ok) return;
+      } else {
+        setStatus(quote.id, "rechazada");
+      }
+    } finally {
+      setActionBusy(false);
+    }
+  };
+  const handleDelete = async () => {
+    if (actionBusy) return;
+    setActionBusy(true);
+    if (!confirm("¿Eliminar esta cotización? Esta acción no se puede deshacer.")) {
+      setActionBusy(false);
+      return;
+    }
+    try {
+      if (isRemoteQuoteId(quote.id)) {
+        const ok = await softDeleteQuoteOnRemote(quote.id);
+        if (!ok) return;
+      } else {
+        deleteQuote(quote.id);
+      }
       onClose();
+    } finally {
+      setActionBusy(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} />
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={onClose}
+      />
       <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col rounded-t-2xl bg-card shadow-[var(--shadow-elegant)] animate-in slide-in-from-bottom-4 duration-300 sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
@@ -73,9 +147,7 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
               <FileText className="h-4.5 w-4.5" />
             </div>
             <div>
-              <h2 className="font-display text-lg font-bold text-foreground">
-                {quote.folio}
-              </h2>
+              <h2 className="font-display text-lg font-bold text-foreground">{quote.folio}</h2>
               <p className="text-xs text-muted-foreground">
                 Creada el {fmtDate.format(quote.createdAt)}
               </p>
@@ -90,11 +162,31 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
             >
               {quoteStatusLabel[quote.status]}
             </span>
-            <button onClick={onClose} className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Cerrar">
+            <button
+              onClick={onClose}
+              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Cerrar"
+            >
               <X className="h-5 w-5" />
             </button>
           </div>
         </div>
+
+        {remoteQuotesError && (
+          <div
+            className="flex items-start gap-2 border-b border-destructive/30 bg-destructive/10 px-5 py-2 text-sm text-destructive"
+            role="alert"
+          >
+            <p className="min-w-0 flex-1">{remoteQuotesError}</p>
+            <button
+              type="button"
+              onClick={() => clearRemoteQuotesError()}
+              className="shrink-0 font-semibold underline underline-offset-2 hover:opacity-80"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
 
         {/* Vista tipo PDF */}
         <div className="flex-1 overflow-y-auto bg-muted/20 px-5 py-6">
@@ -179,27 +271,33 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-5 py-3">
           <button
             onClick={handleDelete}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            disabled={actionBusy}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" /> Eliminar
           </button>
           <div className="flex flex-wrap items-center gap-2">
             <button
+              type="button"
               onClick={() => downloadQuotePdf(quote)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+              disabled={actionBusy}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
             >
               <Download className="h-4 w-4" /> Descargar PDF
             </button>
             <button
+              type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+              disabled={actionBusy}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
             >
               <Printer className="h-4 w-4" /> Imprimir
             </button>
             {quote.status === "borrador" && (
               <button
                 onClick={handleSend}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/10"
+                disabled={actionBusy}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/10 disabled:pointer-events-none disabled:opacity-50"
               >
                 <Send className="h-4 w-4" /> Marcar como enviada
               </button>
@@ -207,7 +305,8 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
             {canApprove && (
               <button
                 onClick={handleReject}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted"
+                disabled={actionBusy}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
               >
                 Rechazar
               </button>
@@ -215,7 +314,8 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
             {canApprove && (
               <button
                 onClick={handleApprove}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:-translate-y-0.5 transition-transform"
+                disabled={actionBusy}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:-translate-y-0.5 transition-transform disabled:pointer-events-none disabled:opacity-50"
               >
                 <Check className="h-4 w-4" /> Aprobar y descontar stock
               </button>

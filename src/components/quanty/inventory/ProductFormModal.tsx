@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { X, Package, Upload, Trash2 } from "lucide-react";
 import { productSchema, type Product, type ProductInput } from "./types";
 import { ProductImage } from "./ProductImage";
+import { useInventoryStore } from "@/stores/inventoryStore";
 
 interface Props {
   open: boolean;
   initial?: Product | null;
   onClose: () => void;
-  onSubmit: (data: ProductInput, id?: string) => void;
+  onSubmit: (data: ProductInput, id?: string) => boolean | Promise<boolean>;
 }
 
 type FormState = {
@@ -68,15 +69,18 @@ async function compressImage(file: File, maxDim = 800, quality = 0.82): Promise<
 }
 
 export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
+  const remoteProductsError = useInventoryStore((s) => s.remoteProductsError);
   const [form, setForm] = useState<FormState>(empty);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setForm(initial ? toForm(initial) : empty);
       setErrors({});
+      setSubmitting(false);
     }
   }, [open, initial]);
 
@@ -116,7 +120,7 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = productSchema.safeParse({
       name: form.name,
@@ -137,15 +141,22 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
       return;
     }
 
-    onSubmit(
-      {
-        ...parsed.data,
-        description: parsed.data.description ?? "",
-        imageUrl: parsed.data.imageUrl ?? "",
-      },
-      initial?.id,
-    );
-    onClose();
+    setSubmitting(true);
+    try {
+      const ok = await Promise.resolve(
+        onSubmit(
+          {
+            ...parsed.data,
+            description: parsed.data.description ?? "",
+            imageUrl: parsed.data.imageUrl ?? "",
+          },
+          initial?.id,
+        ),
+      );
+      if (ok) onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -183,6 +194,11 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
+          {remoteProductsError && (
+            <p className="-mt-1 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+              {remoteProductsError}
+            </p>
+          )}
           <Field label="Imagen" hint="JPG, PNG o WebP. Se redimensiona automáticamente." error={errors.imageUrl}>
             <div className="flex items-center gap-3">
               <ProductImage src={form.imageUrl} alt={form.name || "Producto"} size="lg" />
@@ -286,15 +302,17 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+              disabled={submitting || uploading}
+              className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-60"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:-translate-y-0.5"
+              disabled={submitting || uploading}
+              className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60"
             >
-              {initial ? "Guardar cambios" : "Agregar producto"}
+              {submitting ? "Guardando…" : initial ? "Guardar cambios" : "Agregar producto"}
             </button>
           </div>
         </form>

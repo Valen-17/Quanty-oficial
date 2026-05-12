@@ -3,6 +3,7 @@ import { X, CalendarDays } from "lucide-react";
 import {
   eventInputSchema,
   eventStatusLabel,
+  useAgendaStore,
   type AgendaEvent,
   type EventInput,
   type EventStatus,
@@ -14,7 +15,8 @@ interface Props {
   initial?: AgendaEvent | null;
   defaultDate?: number;
   onClose: () => void;
-  onSubmit: (data: EventInput) => void;
+  /** Devuelve true si la operación remota/local tuvo éxito (el padre cierra el modal). */
+  onSubmit: (data: EventInput) => boolean | Promise<boolean>;
 }
 
 function toDateInput(ts: number) {
@@ -26,6 +28,7 @@ function toDateInput(ts: number) {
 }
 
 export function EventFormModal({ open, initial, defaultDate, onClose, onSubmit }: Props) {
+  const remoteAgendaError = useAgendaStore((s) => s.remoteAgendaError);
   const [title, setTitle] = useState("");
   const [clientName, setClientName] = useState("");
   const [date, setDate] = useState(toDateInput(Date.now()));
@@ -34,6 +37,7 @@ export function EventFormModal({ open, initial, defaultDate, onClose, onSubmit }
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<EventStatus>("pendiente");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -55,11 +59,12 @@ export function EventFormModal({ open, initial, defaultDate, onClose, onSubmit }
       setStatus("pendiente");
     }
     setErrors({});
+    setSubmitting(false);
   }, [open, initial, defaultDate]);
 
   if (!open) return null;
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const parsed = eventInputSchema.safeParse({
       title,
@@ -76,8 +81,13 @@ export function EventFormModal({ open, initial, defaultDate, onClose, onSubmit }
       setErrors(next);
       return;
     }
-    onSubmit(parsed.data);
-    onClose();
+    setSubmitting(true);
+    try {
+      const ok = await Promise.resolve(onSubmit(parsed.data));
+      if (ok) onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -102,6 +112,11 @@ export function EventFormModal({ open, initial, defaultDate, onClose, onSubmit }
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
+          {remoteAgendaError && (
+            <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+              {remoteAgendaError}
+            </p>
+          )}
           <div>
             <label className="mb-1 block text-xs font-semibold text-foreground">Título</label>
             <input
@@ -203,7 +218,8 @@ export function EventFormModal({ open, initial, defaultDate, onClose, onSubmit }
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)]"
+              disabled={submitting}
+              className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] disabled:pointer-events-none disabled:opacity-60"
             >
               {initial ? "Guardar cambios" : "Crear compromiso"}
             </button>

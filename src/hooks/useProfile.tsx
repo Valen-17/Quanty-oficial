@@ -46,7 +46,6 @@ export function useProfile() {
       .maybeSingle();
 
     if (error) {
-      console.error("[useProfile] fetch error", error);
       setProfile(null);
       setLoading(false);
       return;
@@ -78,7 +77,9 @@ export function useProfile() {
   }, [authLoading, fetchProfile]);
 
   const updateProfile = useCallback(
-    async (patch: Partial<Pick<ProfileRow, "full_name" | "business_name" | "phone" | "avatar_url">>) => {
+    async (
+      patch: Partial<Pick<ProfileRow, "full_name" | "business_name" | "phone" | "avatar_url">>,
+    ) => {
       if (!user) return { error: new Error("No user") };
       const { data, error } = await supabase
         .from("profiles")
@@ -92,10 +93,13 @@ export function useProfile() {
     [user],
   );
 
-  const displayName =
-    profile?.full_name?.trim() ||
-    nameFromEmail(user?.email) ||
-    "Usuario";
+  const displayName = profile?.full_name?.trim() || nameFromEmail(user?.email) || "Tu cuenta";
 
-  return { profile, loading: loading || authLoading, displayName, updateProfile, refetch: fetchProfile };
+  return {
+    profile,
+    loading: loading || authLoading,
+    displayName,
+    updateProfile,
+    refetch: fetchProfile,
+  };
 }

@@ -55,8 +55,7 @@ export function AvatarUploader({ size = 96, showHint = true }: AvatarUploaderPro
 
       const { error: updErr } = await updateProfile({ avatar_url: publicUrl });
       if (updErr) throw updErr;
-    } catch (e) {
-      console.error("[AvatarUploader] upload failed", e);
+    } catch {
       setError("No se pudo subir la imagen.");
     } finally {
       setBusy(false);
@@ -69,8 +68,7 @@ export function AvatarUploader({ size = 96, showHint = true }: AvatarUploaderPro
     setError(null);
     try {
       await updateProfile({ avatar_url: null });
-    } catch (e) {
-      console.error("[AvatarUploader] remove failed", e);
+    } catch {
       setError("No se pudo eliminar la foto.");
     } finally {
       setBusy(false);
@@ -133,9 +131,7 @@ export function AvatarUploader({ size = 96, showHint = true }: AvatarUploaderPro
           )}
         </div>
         {showHint && (
-          <p className="text-[11px] text-muted-foreground">
-            JPG, PNG o WEBP · máximo 5 MB
-          </p>
+          <p className="text-[11px] text-muted-foreground">JPG, PNG o WEBP · máximo 5 MB</p>
         )}
         {error && <p className="text-[11px] text-destructive">{error}</p>}
       </div>

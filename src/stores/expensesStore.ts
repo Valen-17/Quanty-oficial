@@ -11,6 +11,15 @@ import {
   type ExpensesPersisted,
 } from "@/domain/entities";
 import { buildPersistOptions } from "@/lib/persist-helpers";
+import { createScopedJsonStorage } from "@/lib/scoped-persist-storage";
+import { mergeRemoteWithLocalLegacy } from "@/lib/merge-remote-with-local-legacy";
+import {
+  isRemoteExpenseId,
+  safeCreateExpense,
+  safeGetExpenses,
+  safeSoftDeleteExpense,
+  safeUpdateExpense,
+} from "@/repositories/expenses.repository";
 
 export const expenseTypeSchema = domainExpenseTypeSchema;
 export type ExpenseType = DomainExpenseType;
@@ -20,61 +29,71 @@ export type Expense = DomainExpense;
 
 interface ExpensesState {
   expenses: Expense[];
+  /** Último error de operaciones remotas de gastos (no persistido). */
+  remoteExpensesError: string | null;
   createExpense: (data: ExpenseInput) => Expense;
   updateExpense: (id: string, data: ExpenseInput) => void;
   deleteExpense: (id: string) => void;
+  clearRemoteExpensesError: () => void;
+  /** Sincroniza con Supabase y conserva gastos solo locales (id no UUID). */
+  syncExpensesFromRemote: () => Promise<boolean>;
+  createExpenseOnRemote: (data: ExpenseInput) => Promise<Expense | null>;
+  updateExpenseOnRemote: (id: string, data: ExpenseInput) => Promise<boolean>;
+  softDeleteExpenseOnRemote: (id: string) => Promise<boolean>;
 }
-
-const now = Date.now();
-const day = 86_400_000;
-
-const seed: Expense[] = [
-  {
-    id: "e-seed-1",
-    concept: "Arriendo del local",
-    amount: 1_200_000,
-    type: "fijo",
-    category: "Local",
-    date: now - day * 18,
-  },
-  {
-    id: "e-seed-2",
-    concept: "Servicios públicos",
-    amount: 320_000,
-    type: "fijo",
-    category: "Servicios",
-    date: now - day * 12,
-  },
-  {
-    id: "e-seed-3",
-    concept: "Salario auxiliar",
-    amount: 1_500_000,
-    type: "fijo",
-    category: "Nómina",
-    date: now - day * 6,
-  },
-  {
-    id: "e-seed-4",
-    concept: "Compra de materiales",
-    amount: 480_000,
-    type: "variable",
-    category: "Insumos",
-    date: now - day * 3,
-  },
-  {
-    id: "e-seed-5",
-    concept: "Transporte y entregas",
-    amount: 95_000,
-    type: "variable",
-    category: "Logística",
-    date: now - day * 1,
-  },
-];
 
 export const useExpensesStore = create<ExpensesState>()(
   persist(
-    (set) => ({
-      expenses: seed,
+    (set, get) => ({
+      expenses: [],
+      remoteExpensesError: null,
+      clearRemoteExpensesError: () => set({ remoteExpensesError: null }),
+      syncExpensesFromRemote: async () => {
+        const res = await safeGetExpenses();
+        if (!res.ok) {
+          set({ remoteExpensesError: res.error });
+          return false;
+        }
+        const merged = mergeRemoteWithLocalLegacy(res.data, get().expenses, isRemoteExpenseId);
+        set({ expenses: merged, remoteExpensesError: null });
+        return true;
+      },
+      createExpenseOnRemote: async (data) => {
+        const res = await safeCreateExpense(data);
+        if (!res.ok) {
+          set({ remoteExpensesError: res.error });
+          return null;
+        }
+        set((s) => ({
+          expenses: [res.data, ...s.expenses.filter((e) => e.id !== res.data.id)],
+          remoteExpensesError: null,
+        }));
+        return res.data;
+      },
+      updateExpenseOnRemote: async (id, data) => {
+        const res = await safeUpdateExpense(id, data);
+        if (!res.ok) {
+          set({ remoteExpensesError: res.error });
+          return false;
+        }
+        set((s) => ({
+          expenses: s.expenses.map((e) => (e.id === id ? res.data : e)),
+          remoteExpensesError: null,
+        }));
+        return true;
+      },
+      softDeleteExpenseOnRemote: async (id) => {
+        const res = await safeSoftDeleteExpense(id);
+        if (!res.ok) {
+          set({ remoteExpensesError: res.error });
+          return false;
+        }
+        set((s) => ({
+          expenses: s.expenses.filter((e) => e.id !== id),
+          remoteExpensesError: null,
+        }));
+        return true;
+      },
       createExpense: (data) => {
         const expense: Expense = {
           id: createEntityId("e"),
@@ -90,24 +109,26 @@ export const useExpensesStore = create<ExpensesState>()(
             e.id === id ? { ...e, ...data, category: data.category ?? "" } : e,
           ),
         })),
-      deleteExpense: (id) =>
-        set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) })),
+      deleteExpense: (id) => set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) })),
     }),
-    buildPersistOptions<ExpensesState, ExpensesPersisted>({
-      name: "quanty-expenses-v1",
-      version: 2,
-      schema: expensesPersistedSchema,
-      fallback: () => ({ expenses: seed }),
-      partialize: (state) => ({ expenses: state.expenses }),
-      migrations: {
-        2: (state) => ({
-          expenses: state.expenses.map((e) => ({
-            ...e,
-            category: e.category ?? "",
-          })),
-        }),
-      },
-    }),
+    {
+      ...buildPersistOptions<ExpensesState, ExpensesPersisted>({
+        name: "quanty-expenses-v1",
+        version: 2,
+        schema: expensesPersistedSchema,
+        fallback: () => ({ expenses: [] }),
+        partialize: (state) => ({ expenses: state.expenses }),
+        migrations: {
+          2: (state) => ({
+            expenses: state.expenses.map((e) => ({
+              ...e,
+              category: e.category ?? "",
+            })),
+          }),
+        },
+      }),
+      storage: createScopedJsonStorage(),
+    },
   ),
 );
 

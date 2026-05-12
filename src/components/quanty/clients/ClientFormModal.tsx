@@ -1,22 +1,25 @@
 import { useEffect, useState } from "react";
 import { X, UserPlus } from "lucide-react";
-import { clientInputSchema, type Client, type ClientInput } from "@/stores/clientsStore";
+import { clientInputSchema, useClientsStore, type Client, type ClientInput } from "@/stores/clientsStore";
 import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
   initial?: Client | null;
   onClose: () => void;
-  onSubmit: (data: ClientInput) => void;
+  /** Devuelve true si la operación remota/local tuvo éxito (el padre cierra el modal). */
+  onSubmit: (data: ClientInput) => boolean | Promise<boolean>;
 }
 
 export function ClientFormModal({ open, initial, onClose, onSubmit }: Props) {
+  const remoteClientsError = useClientsStore((s) => s.remoteClientsError);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [company, setCompany] = useState("");
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -26,6 +29,7 @@ export function ClientFormModal({ open, initial, onClose, onSubmit }: Props) {
       setCompany(initial?.company ?? "");
       setNotes(initial?.notes ?? "");
       setErrors({});
+      setSubmitting(false);
     }
   }, [open, initial]);
 
@@ -38,7 +42,7 @@ export function ClientFormModal({ open, initial, onClose, onSubmit }: Props) {
 
   if (!open) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = clientInputSchema.safeParse({ name, email, phone, company, notes });
     if (!parsed.success) {
@@ -50,7 +54,13 @@ export function ClientFormModal({ open, initial, onClose, onSubmit }: Props) {
       setErrors(errs);
       return;
     }
-    onSubmit(parsed.data);
+    setSubmitting(true);
+    try {
+      const ok = await Promise.resolve(onSubmit(parsed.data));
+      if (ok) onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -88,6 +98,11 @@ export function ClientFormModal({ open, initial, onClose, onSubmit }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {remoteClientsError && (
+            <p className="border-b border-destructive/20 bg-destructive/10 px-5 py-2 text-xs font-medium text-destructive">
+              {remoteClientsError}
+            </p>
+          )}
           <div className="space-y-3 p-5">
             <Field label="Nombre" required error={errors.name}>
               <input
@@ -147,15 +162,17 @@ export function ClientFormModal({ open, initial, onClose, onSubmit }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+              disabled={submitting}
+              className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-60"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:-translate-y-0.5"
+              disabled={submitting}
+              className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60"
             >
-              {initial ? "Guardar cambios" : "Crear cliente"}
+              {submitting ? "Guardando…" : initial ? "Guardar cambios" : "Crear cliente"}
             </button>
           </div>
         </form>

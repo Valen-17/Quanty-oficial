@@ -8,21 +8,85 @@ import {
   type ProductInput,
   type Availability,
 } from "@/components/quanty/inventory/types";
-import { seedProducts } from "@/components/quanty/inventory/seed";
 import { buildPersistOptions } from "@/lib/persist-helpers";
+import { createScopedJsonStorage } from "@/lib/scoped-persist-storage";
+import { mergeRemoteWithLocalLegacy } from "@/lib/merge-remote-with-local-legacy";
+import {
+  isRemoteProductId,
+  safeCreateProduct,
+  safeGetProducts,
+  safeSoftDeleteProduct,
+  safeUpdateProduct,
+} from "@/repositories/products.repository";
 
 interface InventoryState {
   products: Product[];
+  /** Último error de operaciones remotas de productos (no persistido). */
+  remoteProductsError: string | null;
   addProduct: (data: ProductInput) => void;
   updateProduct: (id: string, data: ProductInput) => void;
   deleteProduct: (id: string) => void;
   adjustStock: (id: string, delta: number) => void;
+  clearRemoteProductsError: () => void;
+  /** Sincroniza con Supabase y conserva productos solo locales (id no UUID). */
+  syncProductsFromRemote: () => Promise<boolean>;
+  createProductOnRemote: (data: ProductInput) => Promise<Product | null>;
+  updateProductOnRemote: (id: string, data: ProductInput) => Promise<boolean>;
+  softDeleteProductOnRemote: (id: string) => Promise<boolean>;
 }
 
 export const useInventoryStore = create<InventoryState>()(
   persist(
-    (set) => ({
-      products: seedProducts,
+    (set, get) => ({
+      products: [],
+      remoteProductsError: null,
+      clearRemoteProductsError: () => set({ remoteProductsError: null }),
+      syncProductsFromRemote: async () => {
+        const res = await safeGetProducts();
+        if (!res.ok) {
+          set({ remoteProductsError: res.error });
+          return false;
+        }
+        const merged = mergeRemoteWithLocalLegacy(res.data, get().products, isRemoteProductId);
+        set({ products: merged, remoteProductsError: null });
+        return true;
+      },
+      createProductOnRemote: async (data) => {
+        const res = await safeCreateProduct(data);
+        if (!res.ok) {
+          set({ remoteProductsError: res.error });
+          return null;
+        }
+        set((s) => ({
+          products: [res.data, ...s.products.filter((p) => p.id !== res.data.id)],
+          remoteProductsError: null,
+        }));
+        return res.data;
+      },
+      updateProductOnRemote: async (id, data) => {
+        const res = await safeUpdateProduct(id, data);
+        if (!res.ok) {
+          set({ remoteProductsError: res.error });
+          return false;
+        }
+        set((s) => ({
+          products: s.products.map((p) => (p.id === id ? res.data : p)),
+          remoteProductsError: null,
+        }));
+        return true;
+      },
+      softDeleteProductOnRemote: async (id) => {
+        const res = await safeSoftDeleteProduct(id);
+        if (!res.ok) {
+          set({ remoteProductsError: res.error });
+          return false;
+        }
+        set((s) => ({
+          products: s.products.filter((p) => p.id !== id),
+          remoteProductsError: null,
+        }));
+        return true;
+      },
       addProduct: (data) =>
         set((s) => ({
           products: [
@@ -48,33 +112,33 @@ export const useInventoryStore = create<InventoryState>()(
               : p,
           ),
         })),
-      deleteProduct: (id) =>
-        set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
+      deleteProduct: (id) => set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
       adjustStock: (id, delta) =>
         set((s) => ({
           products: s.products.map((p) =>
-            p.id === id
-              ? { ...p, units: Math.max(0, Math.min(999_999, p.units + delta)) }
-              : p,
+            p.id === id ? { ...p, units: Math.max(0, Math.min(999_999, p.units + delta)) } : p,
           ),
         })),
     }),
-    buildPersistOptions<InventoryState, InventoryPersisted>({
-      name: "quanty-inventory-v1",
-      version: 2,
-      schema: inventoryPersistedSchema,
-      fallback: () => ({ products: seedProducts }),
-      partialize: (state) => ({ products: state.products }),
-      migrations: {
-        2: (state) => ({
-          products: state.products.map((p) => ({
-            ...p,
-            description: p.description ?? "",
-            imageUrl: p.imageUrl ?? "",
-          })),
-        }),
-      },
-    }),
+    {
+      ...buildPersistOptions<InventoryState, InventoryPersisted>({
+        name: "quanty-inventory-v1",
+        version: 2,
+        schema: inventoryPersistedSchema,
+        fallback: () => ({ products: [] }),
+        partialize: (state) => ({ products: state.products }),
+        migrations: {
+          2: (state) => ({
+            products: state.products.map((p) => ({
+              ...p,
+              description: p.description ?? "",
+              imageUrl: p.imageUrl ?? "",
+            })),
+          }),
+        },
+      }),
+      storage: createScopedJsonStorage(),
+    },
   ),
 );
 

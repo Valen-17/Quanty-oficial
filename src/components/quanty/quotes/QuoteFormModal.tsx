@@ -3,6 +3,7 @@ import { X, FileText, Search, Plus, Minus, Trash2, AlertTriangle } from "lucide-
 import {
   calcTotals,
   quoteInputSchema,
+  useQuotesStore,
   type QuoteInput,
   type QuoteItem,
 } from "@/stores/quotesStore";
@@ -17,12 +18,14 @@ import { cn } from "@/lib/utils";
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated: (data: QuoteInput) => void;
+  /** Devuelve true si la cotización se creó correctamente (el modal puede cerrarse). */
+  onCreated: (data: QuoteInput) => boolean | Promise<boolean>;
 }
 
 export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const products = useInventoryStore((s) => s.products);
-  const createClient = useClientsStore((s) => s.createClient);
+  const createClientOnRemote = useClientsStore((s) => s.createClientOnRemote);
+  const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
 
   const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [clientName, setClientName] = useState("");
@@ -32,6 +35,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const [query, setQuery] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [clientModalOpen, setClientModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -42,6 +46,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setItems([]);
       setQuery("");
       setErrors({});
+      setSubmitting(false);
     }
   }, [open]);
 
@@ -129,7 +134,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
         </div>
 
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             const parsed = quoteInputSchema.safeParse({
               clientId,
@@ -148,13 +153,26 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
               setErrors(errs);
               return;
             }
-            (onCreated as unknown as (d: QuoteInput) => void)({
-              ...parsed.data,
-              notes: parsed.data.notes ?? "",
-            });
+            setSubmitting(true);
+            try {
+              const ok = await Promise.resolve(
+                onCreated({
+                  ...parsed.data,
+                  notes: parsed.data.notes ?? "",
+                }),
+              );
+              if (ok) onClose();
+            } finally {
+              setSubmitting(false);
+            }
           }}
           className="flex min-h-0 flex-1 flex-col"
         >
+          {remoteQuotesError && (
+            <p className="border-b border-destructive/20 bg-destructive/10 px-5 py-2 text-xs font-medium text-destructive">
+              {remoteQuotesError}
+            </p>
+          )}
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden md:grid-cols-5">
             {/* Catálogo */}
             <div className="border-b border-border md:col-span-2 md:border-b-0 md:border-r">
@@ -363,15 +381,17 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+                disabled={submitting}
+                className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-60"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:-translate-y-0.5"
+                disabled={submitting}
+                className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60"
               >
-                Crear borrador
+                {submitting ? "Creando…" : "Crear borrador"}
               </button>
             </div>
           </div>
@@ -381,11 +401,12 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       <ClientFormModal
         open={clientModalOpen}
         onClose={() => setClientModalOpen(false)}
-        onSubmit={(data: ClientInput) => {
-          const c = createClient(data);
+        onSubmit={async (data: ClientInput) => {
+          const c = await createClientOnRemote(data);
+          if (!c) return false;
           setClientId(c.id);
           setClientName(c.name);
-          setClientModalOpen(false);
+          return true;
         }}
       />
     </div>

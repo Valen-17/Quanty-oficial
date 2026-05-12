@@ -9,12 +9,15 @@ import {
   type ClientsPersisted,
 } from "@/domain/entities";
 import { buildPersistOptions } from "@/lib/persist-helpers";
+import { createScopedJsonStorage } from "@/lib/scoped-persist-storage";
 import {
+  isRemoteClientId,
   safeCreateClient,
   safeGetClients,
   safeSoftDeleteClient,
   safeUpdateClient,
 } from "@/repositories/clients.repository";
+import { mergeRemoteWithLocalLegacy } from "@/lib/merge-remote-with-local-legacy";
 
 export const clientInputSchema = domainClientInputSchema;
 export type ClientInput = DomainClientInput;
@@ -28,47 +31,17 @@ interface ClientsState {
   updateClient: (id: string, data: ClientInput) => void;
   deleteClient: (id: string) => void;
   clearRemoteClientsError: () => void;
-  /** Reemplaza la lista local con la de Supabase (solo filas activas). */
+  /** Sincroniza con Supabase y conserva clientes solo locales (id no UUID). */
   syncClientsFromRemote: () => Promise<boolean>;
   createClientOnRemote: (data: ClientInput) => Promise<Client | null>;
   updateClientOnRemote: (id: string, data: ClientInput) => Promise<boolean>;
   softDeleteClientOnRemote: (id: string) => Promise<boolean>;
 }
 
-const seed: Client[] = [
-  {
-    id: "c-seed-1",
-    name: "María Restrepo",
-    email: "maria@restrepo.co",
-    phone: "+57 300 555 1122",
-    company: "Diseños MR",
-    notes: "",
-    createdAt: Date.now() - 86400000 * 12,
-  },
-  {
-    id: "c-seed-2",
-    name: "Juan Cárdenas",
-    email: "juan.cardenas@correo.com",
-    phone: "+57 312 444 9988",
-    company: "",
-    notes: "Prefiere pagos a 15 días.",
-    createdAt: Date.now() - 86400000 * 5,
-  },
-  {
-    id: "c-seed-3",
-    name: "Carolina Mejía",
-    email: "",
-    phone: "+57 301 222 3344",
-    company: "Eventos Mejía",
-    notes: "",
-    createdAt: Date.now() - 86400000 * 2,
-  },
-];
-
 export const useClientsStore = create<ClientsState>()(
   persist(
-    (set) => ({
-      clients: seed,
+    (set, get) => ({
+      clients: [],
       remoteClientsError: null,
       clearRemoteClientsError: () => set({ remoteClientsError: null }),
       syncClientsFromRemote: async () => {
@@ -77,7 +50,8 @@ export const useClientsStore = create<ClientsState>()(
           set({ remoteClientsError: res.error });
           return false;
         }
-        set({ clients: res.data, remoteClientsError: null });
+        const merged = mergeRemoteWithLocalLegacy(res.data, get().clients, isRemoteClientId);
+        set({ clients: merged, remoteClientsError: null });
         return true;
       },
       createClientOnRemote: async (data) => {
@@ -144,26 +118,28 @@ export const useClientsStore = create<ClientsState>()(
               : c,
           ),
         })),
-      deleteClient: (id) =>
-        set((s) => ({ clients: s.clients.filter((c) => c.id !== id) })),
+      deleteClient: (id) => set((s) => ({ clients: s.clients.filter((c) => c.id !== id) })),
     }),
-    buildPersistOptions<ClientsState, ClientsPersisted>({
-      name: "quanty-clients-v1",
-      version: 2,
-      schema: clientsPersistedSchema,
-      fallback: () => ({ clients: seed }),
-      partialize: (state) => ({ clients: state.clients }),
-      migrations: {
-        2: (state) => ({
-          clients: state.clients.map((c) => ({
-            ...c,
-            email: c.email ?? "",
-            phone: c.phone ?? "",
-            company: c.company ?? "",
-            notes: c.notes ?? "",
-          })),
-        }),
-      },
-    }),
+    {
+      ...buildPersistOptions<ClientsState, ClientsPersisted>({
+        name: "quanty-clients-v1",
+        version: 2,
+        schema: clientsPersistedSchema,
+        fallback: () => ({ clients: [] }),
+        partialize: (state) => ({ clients: state.clients }),
+        migrations: {
+          2: (state) => ({
+            clients: state.clients.map((c) => ({
+              ...c,
+              email: c.email ?? "",
+              phone: c.phone ?? "",
+              company: c.company ?? "",
+              notes: c.notes ?? "",
+            })),
+          }),
+        },
+      }),
+      storage: createScopedJsonStorage(),
+    },
   ),
 );

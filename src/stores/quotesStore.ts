@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createEntityId, nowTs } from "@/domain/common";
 import {
+  normalizeQuoteInputItems,
   quoteInputSchema as domainQuoteInputSchema,
   quoteItemSchema as domainQuoteItemSchema,
   quoteStatusSchema as domainQuoteStatusSchema,
@@ -13,6 +14,16 @@ import {
   type QuotesPersisted,
 } from "@/domain/entities";
 import { buildPersistOptions } from "@/lib/persist-helpers";
+import { createScopedJsonStorage } from "@/lib/scoped-persist-storage";
+import { mergeRemoteWithLocalLegacy } from "@/lib/merge-remote-with-local-legacy";
+import {
+  isRemoteQuoteId,
+  safeApproveQuoteRemote,
+  safeCreateQuote,
+  safeGetQuotes,
+  safeSoftDeleteQuote,
+  safeUpdateQuote,
+} from "@/repositories/quotes.repository";
 import { useInventoryStore } from "@/stores/inventoryStore";
 
 export const quoteStatusSchema = domainQuoteStatusSchema;
@@ -30,14 +41,31 @@ export function calcTotals(items: QuoteItem[], laborPercent: number) {
   return { subtotal, laborAmount, total };
 }
 
+function maxCounterFromFolios(quotes: Quote[], current: number): number {
+  let m = current;
+  for (const q of quotes) {
+    const match = /^COT-(\d+)$/i.exec(q.folio.trim());
+    if (match) m = Math.max(m, parseInt(match[1], 10));
+  }
+  return m;
+}
+
 interface QuotesState {
   quotes: Quote[];
   counter: number;
+  remoteQuotesError: string | null;
   createQuote: (data: QuoteInput) => Quote;
   setStatus: (id: string, status: QuoteStatus) => void;
   approveQuote: (id: string) => { ok: boolean; error?: string; issues?: ApprovalIssue[] };
   getApprovalIssues: (id: string) => ApprovalIssue[];
   deleteQuote: (id: string) => void;
+  clearRemoteQuotesError: () => void;
+  /** Sincroniza con Supabase y conserva cotizaciones solo locales (id no UUID). Recalcula `counter` con folios fusionados. */
+  syncQuotesFromRemote: () => Promise<boolean>;
+  createQuoteOnRemote: (data: QuoteInput) => Promise<Quote | null>;
+  updateQuoteOnRemote: (quote: Quote) => Promise<boolean>;
+  softDeleteQuoteOnRemote: (id: string) => Promise<boolean>;
+  approveQuoteOnRemote: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 export interface ApprovalIssue {
@@ -52,16 +80,84 @@ export const useQuotesStore = create<QuotesState>()(
     (set, get) => ({
       quotes: [],
       counter: 1000,
+      remoteQuotesError: null,
+      clearRemoteQuotesError: () => set({ remoteQuotesError: null }),
+      syncQuotesFromRemote: async () => {
+        const res = await safeGetQuotes();
+        if (!res.ok) {
+          set({ remoteQuotesError: res.error });
+          return false;
+        }
+        const merged = mergeRemoteWithLocalLegacy(res.data, get().quotes, isRemoteQuoteId);
+        const counter = maxCounterFromFolios(merged, get().counter);
+        set({ quotes: merged, counter, remoteQuotesError: null });
+        return true;
+      },
+      createQuoteOnRemote: async (data) => {
+        const normalizedItems = normalizeQuoteInputItems(data.items);
+        const totals = calcTotals(normalizedItems, data.laborPercent);
+        const counter = get().counter + 1;
+        const folio = `COT-${counter}`;
+        const res = await safeCreateQuote({
+          ...data,
+          clientNameSnapshot: data.clientNameSnapshot ?? data.clientName,
+          items: normalizedItems,
+          folio,
+          status: "borrador",
+          approvedAt: null,
+          ...totals,
+        });
+        if (!res.ok) {
+          set({ remoteQuotesError: res.error });
+          return null;
+        }
+        set((s) => ({
+          quotes: [res.data, ...s.quotes.filter((q) => q.id !== res.data.id)],
+          counter,
+          remoteQuotesError: null,
+        }));
+        return res.data;
+      },
+      updateQuoteOnRemote: async (quote) => {
+        const res = await safeUpdateQuote(quote);
+        if (!res.ok) {
+          set({ remoteQuotesError: res.error });
+          return false;
+        }
+        set((s) => ({
+          quotes: s.quotes.map((q) => (q.id === quote.id ? res.data : q)),
+          remoteQuotesError: null,
+        }));
+        return true;
+      },
+      softDeleteQuoteOnRemote: async (id) => {
+        const res = await safeSoftDeleteQuote(id);
+        if (!res.ok) {
+          set({ remoteQuotesError: res.error });
+          return false;
+        }
+        set((s) => ({
+          quotes: s.quotes.filter((q) => q.id !== id),
+          remoteQuotesError: null,
+        }));
+        return true;
+      },
+      approveQuoteOnRemote: async (id) => {
+        const res = await safeApproveQuoteRemote(id);
+        if (!res.ok) {
+          set({ remoteQuotesError: res.error });
+          return { ok: false as const, error: res.error };
+        }
+        set((s) => ({
+          quotes: s.quotes.map((q) => (q.id === id ? res.data : q)),
+          remoteQuotesError: null,
+        }));
+        void useInventoryStore.getState().syncProductsFromRemote();
+        return { ok: true as const };
+      },
       createQuote: (data) => {
         const counter = get().counter + 1;
-        const normalizedItems = data.items.map((item) => ({
-          ...item,
-          productNameSnapshot: item.productNameSnapshot ?? item.name,
-          unitPriceSnapshot: item.unitPriceSnapshot ?? item.unitPrice,
-          // Compatibilidad actual con UI existente
-          name: item.productNameSnapshot ?? item.name,
-          unitPrice: item.unitPriceSnapshot ?? item.unitPrice,
-        }));
+        const normalizedItems = normalizeQuoteInputItems(data.items);
         const totals = calcTotals(normalizedItems, data.laborPercent);
         const quote: Quote = {
           id: createEntityId("q"),
@@ -125,34 +221,36 @@ export const useQuotesStore = create<QuotesState>()(
         }));
         return { ok: true };
       },
-      deleteQuote: (id) =>
-        set((s) => ({ quotes: s.quotes.filter((q) => q.id !== id) })),
+      deleteQuote: (id) => set((s) => ({ quotes: s.quotes.filter((q) => q.id !== id) })),
     }),
-    buildPersistOptions<QuotesState, QuotesPersisted>({
-      name: "quanty-quotes-v1",
-      version: 2,
-      schema: quotesPersistedSchema,
-      fallback: () => ({ quotes: [], counter: 1000 }),
-      partialize: (state) => ({ quotes: state.quotes, counter: state.counter }),
-      migrations: {
-        2: (state) => ({
-          ...state,
-          quotes: state.quotes.map((q) => ({
-            ...q,
-            notes: q.notes ?? "",
-            clientNameSnapshot: q.clientNameSnapshot ?? q.clientName,
-            clientName: q.clientNameSnapshot ?? q.clientName,
-            items: q.items.map((it) => ({
-              ...it,
-              productNameSnapshot: it.productNameSnapshot ?? it.name,
-              unitPriceSnapshot: it.unitPriceSnapshot ?? it.unitPrice,
-              name: it.productNameSnapshot ?? it.name,
-              unitPrice: it.unitPriceSnapshot ?? it.unitPrice,
+    {
+      ...buildPersistOptions<QuotesState, QuotesPersisted>({
+        name: "quanty-quotes-v1",
+        version: 2,
+        schema: quotesPersistedSchema,
+        fallback: () => ({ quotes: [], counter: 1000 }),
+        partialize: (state) => ({ quotes: state.quotes, counter: state.counter }),
+        migrations: {
+          2: (state) => ({
+            ...state,
+            quotes: state.quotes.map((q) => ({
+              ...q,
+              notes: q.notes ?? "",
+              clientNameSnapshot: q.clientNameSnapshot ?? q.clientName,
+              clientName: q.clientNameSnapshot ?? q.clientName,
+              items: q.items.map((it) => ({
+                ...it,
+                productNameSnapshot: it.productNameSnapshot ?? it.name,
+                unitPriceSnapshot: it.unitPriceSnapshot ?? it.unitPrice,
+                name: it.productNameSnapshot ?? it.name,
+                unitPrice: it.unitPriceSnapshot ?? it.unitPrice,
+              })),
             })),
-          })),
-        }),
-      },
-    }),
+          }),
+        },
+      }),
+      storage: createScopedJsonStorage(),
+    },
   ),
 );
 

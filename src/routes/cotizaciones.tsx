@@ -40,7 +40,9 @@ const filters: { id: Filter; label: string }[] = [
 
 function CotizacionesPage() {
   const quotes = useQuotesStore((s) => s.quotes);
-  const createQuote = useQuotesStore((s) => s.createQuote);
+  const createQuoteOnRemote = useQuotesStore((s) => s.createQuoteOnRemote);
+  const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
+  const clearRemoteQuotesError = useQuotesStore((s) => s.clearRemoteQuotesError);
   const [modalOpen, setModalOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>("todas");
   const [openQuote, setOpenQuote] = useState<Quote | null>(null);
@@ -65,10 +67,16 @@ function CotizacionesPage() {
     return { byStatus, totalApproved };
   }, [quotes]);
 
-  const handleCreate = (data: QuoteInput) => {
-    const quote = createQuote(data);
-    setModalOpen(false);
+  const handleCreate = async (data: QuoteInput) => {
+    const quote = await createQuoteOnRemote(data);
+    if (!quote) return false;
     setOpenQuote(quote);
+    return true;
+  };
+
+  const openCreateModal = () => {
+    clearRemoteQuotesError();
+    setModalOpen(true);
   };
 
   // Mantener detalle sincronizado si el store cambia (al aprobar/cambiar estado)
@@ -80,13 +88,29 @@ function CotizacionesPage() {
       subtitle="Genera propuestas comerciales y descuenta stock al aprobar."
       actions={
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={openCreateModal}
           className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4" /> Nueva cotización
         </button>
       }
     >
+      {remoteQuotesError && !modalOpen && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
+          <p className="min-w-0 flex-1">{remoteQuotesError}</p>
+          <button
+            type="button"
+            onClick={() => clearRemoteQuotesError()}
+            className="shrink-0 font-semibold underline underline-offset-2 hover:opacity-80"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Total" value={quotes.length.toString()} />
         <Stat label="Borradores" value={stats.byStatus.borrador.toString()} />
@@ -133,7 +157,7 @@ function CotizacionesPage() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-16 text-center">
-                    <EmptyState onCreate={() => setModalOpen(true)} hasFilter={filter !== "todas"} />
+                    <EmptyState onCreate={openCreateModal} hasFilter={filter !== "todas"} />
                   </td>
                 </tr>
               ) : (
@@ -185,7 +209,10 @@ function CotizacionesPage() {
 
       <QuoteFormModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          clearRemoteQuotesError();
+        }}
         onCreated={handleCreate}
       />
       <QuoteDetailModal quote={liveOpenQuote} onClose={() => setOpenQuote(null)} />

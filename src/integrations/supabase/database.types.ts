@@ -149,6 +149,7 @@ export type Database = {
           created_at: string;
           updated_at: string;
           approved_at: string | null;
+          deleted_at: string | null;
         };
         Insert: {
           id?: string;
@@ -166,6 +167,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           approved_at?: string | null;
+          deleted_at?: string | null;
         };
         Update: {
           id?: string;
@@ -183,6 +185,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           approved_at?: string | null;
+          deleted_at?: string | null;
         };
         Relationships: [];
       };
@@ -262,6 +265,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      agenda_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          client_id: string | null;
+          quote_id: string | null;
+          title: string;
+          description: string;
+          location: string;
+          scheduled_at: string;
+          status: string;
+          client_name_snapshot: string;
+          created_at: string;
+          updated_at: string;
+          deleted_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          client_id?: string | null;
+          quote_id?: string | null;
+          title: string;
+          description?: string;
+          location?: string;
+          scheduled_at: string;
+          status: string;
+          client_name_snapshot?: string;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          client_id?: string | null;
+          quote_id?: string | null;
+          title?: string;
+          description?: string;
+          location?: string;
+          scheduled_at?: string;
+          status?: string;
+          client_name_snapshot?: string;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+        };
+        Relationships: [];
+      };
       expenses: {
         Row: {
           id: string;
@@ -306,7 +357,12 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      approve_quote: {
+        Args: {
+          p_quote_id: string;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       quote_status: "borrador" | "enviada" | "aprobada" | "rechazada";

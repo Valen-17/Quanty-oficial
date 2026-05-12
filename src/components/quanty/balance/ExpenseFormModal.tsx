@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { X, Wallet } from "lucide-react";
 import {
   expenseInputSchema,
+  useExpensesStore,
   type Expense,
   type ExpenseInput,
   type ExpenseType,
@@ -12,7 +13,8 @@ interface Props {
   open: boolean;
   initial?: Expense | null;
   onClose: () => void;
-  onSubmit: (data: ExpenseInput) => void;
+  /** Devuelve true si la operación remota/local tuvo éxito (el padre cierra el modal). */
+  onSubmit: (data: ExpenseInput) => boolean | Promise<boolean>;
 }
 
 function toDateInput(ts: number) {
@@ -24,12 +26,14 @@ function toDateInput(ts: number) {
 }
 
 export function ExpenseFormModal({ open, initial, onClose, onSubmit }: Props) {
+  const remoteExpensesError = useExpensesStore((s) => s.remoteExpensesError);
   const [concept, setConcept] = useState("");
   const [amount, setAmount] = useState("");
   const [type, setType] = useState<ExpenseType>("variable");
   const [category, setCategory] = useState("");
   const [date, setDate] = useState(toDateInput(Date.now()));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -47,11 +51,12 @@ export function ExpenseFormModal({ open, initial, onClose, onSubmit }: Props) {
       setDate(toDateInput(Date.now()));
     }
     setErrors({});
+    setSubmitting(false);
   }, [open, initial]);
 
   if (!open) return null;
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const parsed = expenseInputSchema.safeParse({
       concept,
@@ -68,8 +73,13 @@ export function ExpenseFormModal({ open, initial, onClose, onSubmit }: Props) {
       setErrors(next);
       return;
     }
-    onSubmit(parsed.data);
-    onClose();
+    setSubmitting(true);
+    try {
+      const ok = await Promise.resolve(onSubmit(parsed.data));
+      if (ok) onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -94,6 +104,11 @@ export function ExpenseFormModal({ open, initial, onClose, onSubmit }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
+          {remoteExpensesError && (
+            <p className="mb-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+              {remoteExpensesError}
+            </p>
+          )}
           <div>
             <label className="mb-1 block text-xs font-semibold text-foreground">Concepto</label>
             <input
@@ -107,7 +122,9 @@ export function ExpenseFormModal({ open, initial, onClose, onSubmit }: Props) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-foreground">Monto (COP)</label>
+              <label className="mb-1 block text-xs font-semibold text-foreground">
+                Monto (COP)
+              </label>
               <input
                 type="number"
                 inputMode="numeric"
@@ -138,6 +155,7 @@ export function ExpenseFormModal({ open, initial, onClose, onSubmit }: Props) {
                   key={t}
                   type="button"
                   onClick={() => setType(t)}
+                  disabled={submitting}
                   className={cn(
                     "rounded-lg border px-3 py-2 text-sm font-semibold transition-colors",
                     type === t
@@ -168,13 +186,15 @@ export function ExpenseFormModal({ open, initial, onClose, onSubmit }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+              disabled={submitting}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-60"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)]"
+              disabled={submitting}
+              className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] disabled:pointer-events-none disabled:opacity-60"
             >
               {initial ? "Guardar cambios" : "Registrar gasto"}
             </button>

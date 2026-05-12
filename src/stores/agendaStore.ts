@@ -11,6 +11,15 @@ import {
   type EventStatus as DomainEventStatus,
 } from "@/domain/entities";
 import { buildPersistOptions } from "@/lib/persist-helpers";
+import { createScopedJsonStorage } from "@/lib/scoped-persist-storage";
+import { mergeRemoteWithLocalLegacy } from "@/lib/merge-remote-with-local-legacy";
+import {
+  isRemoteAgendaEventId,
+  safeCreateAgendaEvent,
+  safeGetAgendaEvents,
+  safeSoftDeleteAgendaEvent,
+  safeUpdateAgendaEvent,
+} from "@/repositories/agenda.repository";
 
 export const eventStatusSchema = domainEventStatusSchema;
 export type EventStatus = DomainEventStatus;
@@ -20,61 +29,73 @@ export type AgendaEvent = DomainAgendaEvent;
 
 interface AgendaState {
   events: AgendaEvent[];
+  /** Último error de operaciones remotas (no persistido). */
+  remoteAgendaError: string | null;
   createEvent: (data: EventInput) => AgendaEvent;
   updateEvent: (id: string, data: EventInput) => void;
   deleteEvent: (id: string) => void;
   setStatus: (id: string, status: EventStatus) => void;
+  clearRemoteAgendaError: () => void;
+  /** Fusiona eventos remotos con entradas solo locales (id no UUID). */
+  syncAgendaFromRemote: () => Promise<boolean>;
+  createAgendaEventOnRemote: (data: EventInput) => Promise<AgendaEvent | null>;
+  updateAgendaEventOnRemote: (event: AgendaEvent) => Promise<boolean>;
+  softDeleteAgendaEventOnRemote: (id: string) => Promise<boolean>;
 }
-
-const now = Date.now();
-const day = 86_400_000;
-
-function startOfDay(ts: number) {
-  const d = new Date(ts);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-const seed: AgendaEvent[] = [
-  {
-    id: "ev-seed-1",
-    title: "Visita técnica - oficina",
-    clientName: "María Restrepo",
-    date: startOfDay(now + day * 1),
-    time: "09:00",
-    location: "Cra 45 #12-34, Medellín",
-    notes: "Llevar muestras de tela.",
-    status: "confirmado",
-    createdAt: now - day * 2,
-  },
-  {
-    id: "ev-seed-2",
-    title: "Entrega de cotización",
-    clientName: "Juan Cárdenas",
-    date: startOfDay(now + day * 3),
-    time: "15:30",
-    location: "",
-    notes: "",
-    status: "pendiente",
-    createdAt: now - day * 1,
-  },
-  {
-    id: "ev-seed-3",
-    title: "Instalación de evento",
-    clientName: "Carolina Mejía",
-    date: startOfDay(now + day * 6),
-    time: "07:00",
-    location: "Hotel Estelar",
-    notes: "Coordinar con logística.",
-    status: "pendiente",
-    createdAt: now,
-  },
-];
 
 export const useAgendaStore = create<AgendaState>()(
   persist(
-    (set) => ({
-      events: seed,
+    (set, get) => ({
+      events: [],
+      remoteAgendaError: null,
+      clearRemoteAgendaError: () => set({ remoteAgendaError: null }),
+      syncAgendaFromRemote: async () => {
+        const res = await safeGetAgendaEvents();
+        if (!res.ok) {
+          set({ remoteAgendaError: res.error });
+          return false;
+        }
+        const remote = res.data;
+        const merged = mergeRemoteWithLocalLegacy(remote, get().events, isRemoteAgendaEventId);
+        set({ events: merged, remoteAgendaError: null });
+        return true;
+      },
+      createAgendaEventOnRemote: async (data) => {
+        const res = await safeCreateAgendaEvent(data);
+        if (!res.ok) {
+          set({ remoteAgendaError: res.error });
+          return null;
+        }
+        set((s) => ({
+          events: [res.data, ...s.events.filter((ev) => ev.id !== res.data.id)],
+          remoteAgendaError: null,
+        }));
+        return res.data;
+      },
+      updateAgendaEventOnRemote: async (event) => {
+        const res = await safeUpdateAgendaEvent(event);
+        if (!res.ok) {
+          set({ remoteAgendaError: res.error });
+          return false;
+        }
+        set((s) => ({
+          events: s.events.map((ev) => (ev.id === event.id ? res.data : ev)),
+          remoteAgendaError: null,
+        }));
+        return true;
+      },
+      softDeleteAgendaEventOnRemote: async (id) => {
+        const res = await safeSoftDeleteAgendaEvent(id);
+        if (!res.ok) {
+          set({ remoteAgendaError: res.error });
+          return false;
+        }
+        set((s) => ({
+          events: s.events.filter((ev) => ev.id !== id),
+          remoteAgendaError: null,
+        }));
+        return true;
+      },
       createEvent: (data) => {
         const event: AgendaEvent = {
           id: createEntityId("ev"),
@@ -97,34 +118,38 @@ export const useAgendaStore = create<AgendaState>()(
                   clientName: data.clientName ?? "",
                   location: data.location ?? "",
                   notes: data.notes ?? "",
+                  clientId: data.clientId ?? e.clientId,
+                  quoteId: data.quoteId ?? e.quoteId,
                 }
               : e,
           ),
         })),
-      deleteEvent: (id) =>
-        set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
+      deleteEvent: (id) => set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
       setStatus: (id, status) =>
         set((s) => ({
           events: s.events.map((e) => (e.id === id ? { ...e, status } : e)),
         })),
     }),
-    buildPersistOptions<AgendaState, AgendaPersisted>({
-      name: "quanty-agenda-v1",
-      version: 2,
-      schema: agendaPersistedSchema,
-      fallback: () => ({ events: seed }),
-      partialize: (state) => ({ events: state.events }),
-      migrations: {
-        2: (state) => ({
-          events: state.events.map((e) => ({
-            ...e,
-            clientName: e.clientName ?? "",
-            location: e.location ?? "",
-            notes: e.notes ?? "",
-          })),
-        }),
-      },
-    }),
+    {
+      ...buildPersistOptions<AgendaState, AgendaPersisted>({
+        name: "quanty-agenda-v1",
+        version: 2,
+        schema: agendaPersistedSchema,
+        fallback: () => ({ events: [] }),
+        partialize: (state) => ({ events: state.events }),
+        migrations: {
+          2: (state) => ({
+            events: state.events.map((e) => ({
+              ...e,
+              clientName: e.clientName ?? "",
+              location: e.location ?? "",
+              notes: e.notes ?? "",
+            })),
+          }),
+        },
+      }),
+      storage: createScopedJsonStorage(),
+    },
   ),
 );
 
