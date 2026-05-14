@@ -34,7 +34,6 @@ const defaultProfile: Profile = {
   language: "es",
   hasEmployees: false,
   employeeCount: 0,
-  laborPercent: 20,
 };
 
 const defaultPreferences: Preferences = {
@@ -57,7 +56,7 @@ export const useSettingsStore = create<SettingsState>()(
     {
       ...buildPersistOptions<SettingsState, SettingsPersisted>({
         name: "quanty-settings-v1",
-        version: 3,
+        version: 4,
         schema: settingsPersistedSchema,
         fallback: () => ({ profile: defaultProfile, preferences: defaultPreferences }),
         partialize: (state) => ({ profile: state.profile, preferences: state.preferences }),
@@ -70,17 +69,20 @@ export const useSettingsStore = create<SettingsState>()(
               phone: state.profile.phone ?? "",
               hasEmployees: state.profile.hasEmployees ?? false,
               employeeCount: state.profile.employeeCount ?? 0,
-              laborPercent: state.profile.laborPercent ?? 20,
             },
             preferences: { ...defaultPreferences, ...state.preferences },
           }),
           3: (state) => ({
-            profile: {
-              ...state.profile,
-              laborPercent: state.profile.laborPercent ?? 20,
-            },
+            profile: { ...state.profile },
             preferences: { ...defaultPreferences, ...state.preferences },
           }),
+          4: (state) => {
+            const { laborPercent: _lp, ...profileWithout } = state.profile as Record<string, unknown>;
+            return {
+              profile: profileWithout,
+              preferences: { ...defaultPreferences, ...state.preferences },
+            };
+          },
         },
       }),
       storage: createScopedJsonStorage(),

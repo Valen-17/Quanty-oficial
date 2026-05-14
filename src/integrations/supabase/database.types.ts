@@ -24,7 +24,6 @@ export type Database = {
           language: string;
           has_employees: boolean;
           employee_count: number;
-          labor_percent: number;
           created_at: string;
           updated_at: string;
         };
@@ -39,7 +38,6 @@ export type Database = {
           language?: string;
           has_employees?: boolean;
           employee_count?: number;
-          labor_percent?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -54,7 +52,6 @@ export type Database = {
           language?: string;
           has_employees?: boolean;
           employee_count?: number;
-          labor_percent?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -151,9 +148,7 @@ export type Database = {
           client_name: string;
           client_name_snapshot: string;
           notes: string;
-          labor_percent: string;
           subtotal: string;
-          labor_amount: string;
           total: string;
           labor_workers: number;
           labor_hours: string;
@@ -173,9 +168,7 @@ export type Database = {
           client_name: string;
           client_name_snapshot: string;
           notes?: string;
-          labor_percent: string;
           subtotal: string;
-          labor_amount: string;
           total: string;
           labor_workers?: number;
           labor_hours?: string;
@@ -195,9 +188,7 @@ export type Database = {
           client_name?: string;
           client_name_snapshot?: string;
           notes?: string;
-          labor_percent?: string;
           subtotal?: string;
-          labor_amount?: string;
           total?: string;
           labor_workers?: number;
           labor_hours?: string;

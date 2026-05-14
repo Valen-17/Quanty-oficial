@@ -30,7 +30,6 @@ const createRemoteQuoteParamsSchema = quoteInputSchema.extend({
   folio: z.string().min(1),
   status: quoteStatusSchema,
   subtotal: z.number().nonnegative(),
-  laborAmount: z.number().nonnegative(),
   laborEmployeeAmount: z.number().nonnegative().default(0),
   total: z.number().nonnegative(),
   approvedAt: z.number().int().nonnegative().optional().nullable(),
@@ -111,20 +110,13 @@ function joinedRowToQuote(
     items.push(mapped.data);
   }
 
-  const laborPercent = parseNumeric(row.labor_percent);
   const subtotal = parseNumeric(row.subtotal);
-  const laborAmount = parseNumeric(row.labor_amount);
   const laborEmployeeAmount = parseNumeric(String(row.labor_employee_amount ?? "0"));
   const total = parseNumeric(row.total);
   const createdAt = Date.parse(row.created_at);
-  if (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100) {
-    return { ok: false, data: null, error: `labor_percent inválido en cotización ${row.id}.` };
-  }
   if (
     !Number.isFinite(subtotal) ||
-    subtotal < 0 ||
-    !Number.isFinite(laborAmount) ||
-    laborAmount < 0
+    subtotal < 0
   ) {
     return { ok: false, data: null, error: `Montos inválidos en cotización ${row.id}.` };
   }
@@ -151,14 +143,12 @@ function joinedRowToQuote(
     clientName: row.client_name.trim(),
     clientNameSnapshot: row.client_name_snapshot.trim(),
     notes: row.notes ?? "",
-    laborPercent,
     laborWorkers: row.labor_workers ?? 0,
     laborHours: Number(row.labor_hours ?? 0),
     laborRate: Number(row.labor_rate ?? 0),
     laborEmployeeAmount: Number.isFinite(laborEmployeeAmount) ? laborEmployeeAmount : 0,
     items,
     subtotal,
-    laborAmount,
     total,
   };
 
@@ -261,9 +251,7 @@ export async function createQuote(
       client_name: p.clientName.trim(),
       client_name_snapshot: clientNameSnapshot.trim(),
       notes: p.notes ?? "",
-      labor_percent: String(p.laborPercent),
       subtotal: String(p.subtotal),
-      labor_amount: String(p.laborAmount),
       total: String(p.total),
       labor_workers: p.laborWorkers ?? 0,
       labor_hours: String(p.laborHours ?? 0),
@@ -361,9 +349,7 @@ export async function updateQuote(quote: Quote): Promise<QuotesRepoResult<Quote>
       client_name: q.clientName.trim(),
       client_name_snapshot: q.clientNameSnapshot.trim(),
       notes: q.notes ?? "",
-      labor_percent: String(q.laborPercent),
       subtotal: String(q.subtotal),
-      labor_amount: String(q.laborAmount),
       total: String(q.total),
       labor_workers: q.laborWorkers ?? 0,
       labor_hours: String(q.laborHours ?? 0),

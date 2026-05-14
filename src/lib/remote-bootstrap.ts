@@ -15,7 +15,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 async function syncProfileIntoSettingsStore(userId: string): Promise<void> {
   const { data } = await supabase
     .from("profiles")
-    .select("full_name, business_name, phone, has_employees, employee_count, labor_percent")
+    .select("full_name, business_name, phone, has_employees, employee_count")
     .eq("id", userId)
     .maybeSingle();
   if (!data) return;
@@ -27,7 +27,6 @@ async function syncProfileIntoSettingsStore(userId: string): Promise<void> {
     phone: data.phone ?? current.phone,
     hasEmployees: data.has_employees ?? current.hasEmployees,
     employeeCount: data.employee_count ?? current.employeeCount,
-    laborPercent: data.labor_percent ?? current.laborPercent,
   });
 }
 

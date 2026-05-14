@@ -42,7 +42,6 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [clientName, setClientName] = useState("");
   const [notes, setNotes] = useState("");
-  const [laborPercent, setLaborPercent] = useState("20");
   const [laborWorkers, setLaborWorkers] = useState("0");
   const [laborHours, setLaborHours] = useState("0");
   const [laborRate, setLaborRate] = useState("0");
@@ -57,7 +56,6 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setClientId(undefined);
       setClientName("");
       setNotes("");
-      setLaborPercent(String(profile.laborPercent ?? 20));
       setLaborWorkers(profile.hasEmployees ? String(availableWorkers) : "0");
       setLaborHours("0");
       setLaborRate("0");
@@ -66,7 +64,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setErrors({});
       setSubmitting(false);
     }
-  }, [open, profile.hasEmployees, profile.employeeCount, profile.laborPercent, availableWorkers]);
+  }, [open, profile.hasEmployees, profile.employeeCount, availableWorkers]);
 
   useEffect(() => {
     if (!open) return;
@@ -87,12 +85,11 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
     () =>
       calcTotals(
         items,
-        Number(laborPercent) || 0,
         Number(laborWorkers) || 0,
         Number(laborHours) || 0,
         Number(laborRate) || 0,
       ),
-    [items, laborPercent, laborWorkers, laborHours, laborRate],
+    [items, laborWorkers, laborHours, laborRate],
   );
 
   const addItem = (productId: string) => {
@@ -176,7 +173,6 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
               clientName,
               clientNameSnapshot: clientName,
               notes,
-              laborPercent: laborPercent === "" ? NaN : Number(laborPercent),
               laborWorkers: workers,
               laborHours: hours,
               laborRate: rate,
@@ -289,41 +285,6 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                     onCreateNew={() => setClientModalOpen(true)}
                     error={!!errors.clientName}
                   />
-                </Field>
-                <Field
-                  label={`Mano de obra (${Number(laborPercent) || 0}%)`}
-                  error={errors.laborPercent}
-                  required
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={laborPercent}
-                      onChange={(e) => setLaborPercent(e.target.value)}
-                      className="flex-1 accent-[oklch(0.48_0.22_295)]"
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={laborPercent}
-                      onChange={(e) => setLaborPercent(e.target.value)}
-                      className={cn(inputCls(!!errors.laborPercent), "w-20 text-right")}
-                    />
-                  </div>
-                  {profile.hasEmployees && profile.employeeCount > 0 && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      ~
-                      {Math.max(
-                        1,
-                        Math.round(profile.employeeCount * ((Number(laborPercent) || 0) / 100)),
-                      )}{" "}
-                      empleados
-                    </p>
-                  )}
                 </Field>
 
                 {profile.hasEmployees && (
@@ -488,12 +449,8 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
 
           {/* Resumen + acciones */}
           <div className="border-t border-border bg-muted/30 px-5 py-4">
-            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
               <Total label="Subtotal" value={fmtCOP.format(totals.subtotal)} />
-              <Total
-                label={`M.O. ${Number(laborPercent) || 0}%`}
-                value={fmtCOP.format(totals.laborAmount)}
-              />
               <Total label="M.O. empleados" value={fmtCOP.format(totals.laborEmployeeAmount)} />
               <Total label="Total" value={fmtCOP.format(totals.total)} accent />
             </div>

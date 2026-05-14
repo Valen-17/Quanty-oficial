@@ -243,10 +243,6 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
                   <dt className="text-muted-foreground">Subtotal</dt>
                   <dd className="font-mono font-medium">{fmtCOP.format(quote.subtotal)}</dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Mano de obra ({quote.laborPercent}%)</dt>
-                  <dd className="font-mono font-medium">{fmtCOP.format(quote.laborAmount)}</dd>
-                </div>
                 {(quote.laborEmployeeAmount ?? 0) > 0 && (
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">

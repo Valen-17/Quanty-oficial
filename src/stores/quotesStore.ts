@@ -36,16 +36,14 @@ export type Quote = DomainQuote;
 
 export function calcTotals(
   items: QuoteItem[],
-  laborPercent: number,
   laborWorkers = 0,
   laborHours = 0,
   laborRate = 0,
 ) {
   const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-  const laborAmount = Math.round((subtotal * laborPercent) / 100);
   const laborEmployeeAmount = Math.round(laborWorkers * laborHours * laborRate);
-  const total = subtotal + laborAmount + laborEmployeeAmount;
-  return { subtotal, laborAmount, laborEmployeeAmount, total };
+  const total = subtotal + laborEmployeeAmount;
+  return { subtotal, laborEmployeeAmount, total };
 }
 
 function maxCounterFromFolios(quotes: Quote[], current: number): number {
@@ -104,7 +102,6 @@ export const useQuotesStore = create<QuotesState>()(
         const normalizedItems = normalizeQuoteInputItems(data.items);
         const totals = calcTotals(
           normalizedItems,
-          data.laborPercent,
           data.laborWorkers ?? 0,
           data.laborHours ?? 0,
           data.laborRate ?? 0,
@@ -173,7 +170,6 @@ export const useQuotesStore = create<QuotesState>()(
         const normalizedItems = normalizeQuoteInputItems(data.items);
         const totals = calcTotals(
           normalizedItems,
-          data.laborPercent,
           data.laborWorkers ?? 0,
           data.laborHours ?? 0,
           data.laborRate ?? 0,

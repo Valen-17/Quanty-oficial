@@ -98,10 +98,18 @@ export function downloadQuotePdf(quote: Quote) {
   doc.setTextColor(40, 40, 40);
   doc.text(fmtCOP.format(quote.subtotal), pageWidth - margin, finalY, { align: "right" });
 
-  doc.setTextColor(110, 110, 110);
-  doc.text(`Mano de obra (${quote.laborPercent}%)`, totalsX, finalY + 16);
-  doc.setTextColor(40, 40, 40);
-  doc.text(fmtCOP.format(quote.laborAmount), pageWidth - margin, finalY + 16, { align: "right" });
+  if ((quote.laborEmployeeAmount ?? 0) > 0) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(
+      `M.O. empleados (${quote.laborWorkers ?? 0} × ${quote.laborHours ?? 0}h)`,
+      totalsX,
+      finalY + 16,
+    );
+    doc.setTextColor(40, 40, 40);
+    doc.text(fmtCOP.format(quote.laborEmployeeAmount ?? 0), pageWidth - margin, finalY + 16, {
+      align: "right",
+    });
+  }
 
   doc.setDrawColor(220, 220, 220);
   doc.line(totalsX, finalY + 26, pageWidth - margin, finalY + 26);
