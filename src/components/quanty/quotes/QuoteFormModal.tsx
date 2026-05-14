@@ -26,8 +26,18 @@ interface Props {
 export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const products = useInventoryStore((s) => s.products);
   const createClientOnRemote = useClientsStore((s) => s.createClientOnRemote);
+  const quotes = useQuotesStore((s) => s.quotes);
   const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
   const profile = useSettingsStore((s) => s.profile);
+
+  const usedWorkers = useMemo(
+    () =>
+      quotes
+        .filter((q) => q.status !== "rechazada")
+        .reduce((sum, q) => sum + (q.laborWorkers ?? 0), 0),
+    [quotes],
+  );
+  const availableWorkers = Math.max(0, profile.employeeCount - usedWorkers);
 
   const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [clientName, setClientName] = useState("");
@@ -48,7 +58,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setClientName("");
       setNotes("");
       setLaborPercent(String(profile.laborPercent ?? 20));
-      setLaborWorkers(profile.hasEmployees ? String(profile.employeeCount) : "0");
+      setLaborWorkers(profile.hasEmployees ? String(availableWorkers) : "0");
       setLaborHours("0");
       setLaborRate("0");
       setItems([]);
@@ -56,7 +66,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setErrors({});
       setSubmitting(false);
     }
-  }, [open, profile.hasEmployees, profile.employeeCount, profile.laborPercent]);
+  }, [open, profile.hasEmployees, profile.employeeCount, profile.laborPercent, availableWorkers]);
 
   useEffect(() => {
     if (!open) return;
@@ -265,8 +275,8 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
             </div>
 
             {/* Items y datos */}
-            <div className="flex min-h-0 flex-col md:col-span-3">
-              <div className="space-y-3 border-b border-border p-4">
+            <div className="flex min-h-0 flex-col overflow-visible md:col-span-3">
+              <div className="space-y-3 overflow-visible border-b border-border p-4">
                 <Field label="Cliente" error={errors.clientName} required>
                   <ClientCombobox
                     value={clientName}
@@ -306,35 +316,41 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                   </div>
                   {profile.hasEmployees && profile.employeeCount > 0 && (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      ~{Math.max(1, Math.round(profile.employeeCount * ((Number(laborPercent) || 0) / 100)))} empleados
+                      ~
+                      {Math.max(
+                        1,
+                        Math.round(profile.employeeCount * ((Number(laborPercent) || 0) / 100)),
+                      )}{" "}
+                      empleados
                     </p>
                   )}
                 </Field>
 
                 {profile.hasEmployees && (
                   <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                      <Users className="h-3.5 w-3.5 text-primary" />
-                      Mano de obra por empleados
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                        <Users className="h-3.5 w-3.5 text-primary" />
+                        Mano de obra por empleados
+                      </div>
+                      {profile.employeeCount > 0 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {availableWorkers} de {profile.employeeCount} disponibles
+                        </span>
+                      )}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">
                           Trabajadores
-                          {profile.employeeCount > 0 && (
-                            <span className="ml-1 text-muted-foreground">
-                              (máx {profile.employeeCount})
-                            </span>
-                          )}
                         </label>
                         <input
                           type="number"
                           min={0}
-                          max={profile.employeeCount > 0 ? profile.employeeCount : 9999}
+                          max={availableWorkers}
                           value={laborWorkers}
                           onChange={(e) => {
-                            const max = profile.employeeCount > 0 ? profile.employeeCount : 9999;
-                            setLaborWorkers(String(Math.min(Number(e.target.value) || 0, max)));
+                            setLaborWorkers(String(Math.min(Number(e.target.value) || 0, availableWorkers)));
                           }}
                           className={cn(inputCls(!!errors.laborWorkers), "text-right")}
                         />

@@ -77,7 +77,7 @@ export function ClientCombobox({ value, onChange, onSelectClient, onCreateNew, e
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-[var(--shadow-elegant)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-[var(--shadow-elegant)] animate-in fade-in zoom-in-95 duration-150">
           <div className="relative border-b border-border">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
