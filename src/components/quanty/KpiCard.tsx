@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
 
 interface KpiCardProps {
   label: string;
@@ -27,24 +28,61 @@ export function KpiCard({
   accent = "primary",
 }: KpiCardProps) {
   const positive = (delta ?? 0) >= 0;
+  const spanRef = useRef<HTMLSpanElement>(null);
+  const [overflow, setOverflow] = useState(0);
+
+  useEffect(() => {
+    const el = spanRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+    const calc = () => {
+      const diff = el.scrollWidth - parent.clientWidth;
+      setOverflow(diff > 0 ? diff : 0);
+    };
+    calc();
+    const ro = new ResizeObserver(calc);
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, [value]);
+
+  const handleMouseEnter = () => {
+    if (spanRef.current && overflow > 0)
+      spanRef.current.style.transform = `translateX(-${overflow - 50}px)`;
+  };
+
+  const handleMouseLeave = () => {
+    if (spanRef.current) spanRef.current.style.transform = "translateX(0px)";
+  };
+
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-elegant)]">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {label}
-          </p>
-          <p className="mt-2 font-display text-2xl font-bold text-foreground sm:text-3xl">
-            {value}
-          </p>
-        </div>
-        <div
-          className={cn("flex h-10 w-10 items-center justify-center rounded-xl", accentMap[accent])}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
+    <div
+      className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-elegant)]"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div
+        className={cn(
+          "absolute right-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-xl",
+          accentMap[accent],
+        )}
+      >
+        <Icon className="h-5 w-5" />
       </div>
-      <div className="mt-4 flex items-center gap-2 text-xs">
+      <div className="relative z-10 overflow-hidden pr-14">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <p className="mt-2 font-display text-2xl font-bold text-foreground sm:text-3xl">
+          <span
+            ref={spanRef}
+            className="inline-block whitespace-nowrap transition-transform duration-700 ease-in-out"
+          >
+            {value}
+          </span>
+        </p>
+      </div>
+      <div className="relative z-10 mt-4 flex items-center gap-2 text-xs">
         {delta !== undefined && (
           <span
             className={cn(

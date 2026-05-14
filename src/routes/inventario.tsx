@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Plus, Search, Package, Pencil, Trash2, Minus, Plus as PlusIcon } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { ProductFormModal } from "@/components/quanty/inventory/ProductFormModal";
@@ -312,12 +312,50 @@ function SummaryStat({
     warning: "text-warning-foreground",
     primary: "text-primary",
   };
+  const spanRef = useRef<HTMLSpanElement>(null);
+  const [overflow, setOverflow] = useState(0);
+
+  useEffect(() => {
+    const el = spanRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+    const calc = () => {
+      const diff = el.scrollWidth - parent.clientWidth;
+      setOverflow(diff > 0 ? diff : 0);
+    };
+    calc();
+    const ro = new ResizeObserver(calc);
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, [value]);
+
+  const handleMouseEnter = () => {
+    if (spanRef.current && overflow > 0)
+      spanRef.current.style.transform = `translateX(-${overflow}px)`;
+  };
+
+  const handleMouseLeave = () => {
+    if (spanRef.current) spanRef.current.style.transform = "translateX(0px)";
+  };
+
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+    <div
+      className="rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 font-display text-xl font-bold sm:text-2xl", accents[accent])}>
-        {value}
-      </p>
+      <div className="mt-1 overflow-hidden">
+        <p className={cn("font-display text-xl font-bold sm:text-2xl", accents[accent])}>
+          <span
+            ref={spanRef}
+            className="inline-block whitespace-nowrap transition-transform duration-700 ease-in-out"
+          >
+            {value}
+          </span>
+        </p>
+      </div>
     </div>
   );
 }
