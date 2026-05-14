@@ -95,8 +95,7 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
 
   if (!open) return null;
 
-  const set = <K extends keyof FormState>(k: K, v: string) =>
-    setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof FormState>(k: K, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -199,7 +198,11 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
               {remoteProductsError}
             </p>
           )}
-          <Field label="Imagen" hint="JPG, PNG o WebP. Se redimensiona automáticamente." error={errors.imageUrl}>
+          <Field
+            label="Imagen"
+            hint="JPG, PNG o WebP. Se redimensiona automáticamente."
+            error={errors.imageUrl}
+          >
             <div className="flex items-center gap-3">
               <ProductImage src={form.imageUrl} alt={form.name || "Producto"} size="lg" />
               <div className="flex flex-col gap-2">

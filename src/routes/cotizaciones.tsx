@@ -12,8 +12,12 @@ import {
   type QuoteInput,
   type QuoteStatus,
 } from "@/stores/quotesStore";
-import { fmtCOP, fmtDate } from "@/lib/format";
+import { fmtDate } from "@/lib/format";
+import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { cn } from "@/lib/utils";
+import { useClientsStore } from "@/stores/clientsStore";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { sendQuoteEmail } from "@/lib/sendQuoteEmail";
 
 export const Route = createFileRoute("/cotizaciones")({
   head: () => ({
@@ -39,6 +43,10 @@ const filters: { id: Filter; label: string }[] = [
 ];
 
 function CotizacionesPage() {
+  const fmtMoney = useFmtMoney();
+  const clients = useClientsStore((s) => s.clients);
+  const profile = useSettingsStore((s) => s.profile);
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const quotes = useQuotesStore((s) => s.quotes);
   const createQuoteOnRemote = useQuotesStore((s) => s.createQuoteOnRemote);
   const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
@@ -71,6 +79,8 @@ function CotizacionesPage() {
     const quote = await createQuoteOnRemote(data);
     if (!quote) return false;
     setOpenQuote(quote);
+    const client = data.clientId ? clients.find((c) => c.id === data.clientId) : undefined;
+    void sendQuoteEmail(quote, client?.email ?? "", profile.businessName ?? "", profile.currency, exchangeRate);
     return true;
   };
 
@@ -80,7 +90,7 @@ function CotizacionesPage() {
   };
 
   // Mantener detalle sincronizado si el store cambia (al aprobar/cambiar estado)
-  const liveOpenQuote = openQuote ? quotes.find((q) => q.id === openQuote.id) ?? null : null;
+  const liveOpenQuote = openQuote ? (quotes.find((q) => q.id === openQuote.id) ?? null) : null;
 
   return (
     <AppLayout
@@ -117,7 +127,7 @@ function CotizacionesPage() {
         <Stat label="Aprobadas" value={stats.byStatus.aprobada.toString()} accent="success" />
         <Stat
           label="Ingresos aprobados"
-          value={fmtCOP.format(stats.totalApproved)}
+          value={fmtMoney(stats.totalApproved)}
           accent="primary"
         />
       </section>
@@ -179,7 +189,7 @@ function CotizacionesPage() {
                       {q.items.length}
                     </td>
                     <td className="px-4 py-3 text-right font-mono font-semibold text-foreground sm:px-5">
-                      {fmtCOP.format(q.total)}
+                      {fmtMoney(q.total)}
                     </td>
                     <td className="px-4 py-3 sm:px-5">
                       <span

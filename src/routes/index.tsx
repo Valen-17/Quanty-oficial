@@ -20,7 +20,8 @@ import {
   type Quote,
   type QuoteInput,
 } from "@/stores/quotesStore";
-import { fmtCOP, fmtDate } from "@/lib/format";
+import { fmtDate } from "@/lib/format";
+import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { cn } from "@/lib/utils";
 import { firstName, useProfile } from "@/hooks/useProfile";
 import {
@@ -28,6 +29,9 @@ import {
   selectPendingQuotesCount,
   selectQuoteCountByStatus,
 } from "@/stores/selectors";
+import { useClientsStore } from "@/stores/clientsStore";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { sendQuoteEmail } from "@/lib/sendQuoteEmail";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -44,6 +48,10 @@ export const Route = createFileRoute("/")({
 });
 
 function DashboardPage() {
+  const fmtMoney = useFmtMoney();
+  const clients = useClientsStore((s) => s.clients);
+  const profile = useSettingsStore((s) => s.profile);
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const inventoryValue = useInventoryStore(selectInventoryValue);
   const inventoryCount = useInventoryStore(selectInventoryCount);
   const quotes = useQuotesStore((s) => s.quotes);
@@ -63,6 +71,8 @@ function DashboardPage() {
     const q = await createQuoteOnRemote(data);
     if (!q) return false;
     setOpenQuote(q);
+    const client = data.clientId ? clients.find((c) => c.id === data.clientId) : undefined;
+    void sendQuoteEmail(q, client?.email ?? "", profile.businessName ?? "", profile.currency, exchangeRate);
     return true;
   };
 
@@ -127,14 +137,14 @@ function DashboardPage() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Ingresos aprobados"
-          value={fmtCOP.format(approvedTotal)}
+          value={fmtMoney(approvedTotal)}
           hint={`${quoteByStatus.aprobada} cotizaciones`}
           icon={Wallet}
           accent="primary"
         />
         <KpiCard
           label="Valor del inventario"
-          value={fmtCOP.format(inventoryValue)}
+          value={fmtMoney(inventoryValue)}
           hint={`${inventoryCount} ${inventoryCount === 1 ? "producto" : "productos"}`}
           icon={Package}
           accent="success"
@@ -249,7 +259,7 @@ function DashboardPage() {
                       {fmtDate.format(q.createdAt)}
                     </td>
                     <td className="px-5 py-3 text-right font-mono font-semibold text-foreground sm:px-6">
-                      {fmtCOP.format(q.total)}
+                      {fmtMoney(q.total)}
                     </td>
                     <td className="px-5 py-3 sm:px-6">
                       <span

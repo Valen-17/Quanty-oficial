@@ -50,10 +50,12 @@ export const quoteSchema = z.object({
   clientName: z.string().trim().min(2).max(80),
   clientNameSnapshot: z.string().trim().min(2).max(80),
   notes: z.string().trim().max(280).or(z.literal("")),
-  laborPercent: z.number().min(0).max(100),
+  laborWorkers: z.number().int().nonnegative().default(0),
+  laborHours: z.number().nonnegative().default(0),
+  laborRate: z.number().nonnegative().default(0),
+  laborEmployeeAmount: z.number().nonnegative().default(0),
   items: z.array(quoteItemSchema).min(1),
   subtotal: z.number().nonnegative(),
-  laborAmount: z.number().nonnegative(),
   total: z.number().nonnegative(),
 });
 export const quoteInputSchema = z.object({
@@ -61,7 +63,9 @@ export const quoteInputSchema = z.object({
   clientName: z.string().trim().min(2).max(80),
   clientNameSnapshot: z.string().trim().min(2).max(80).optional(),
   notes: z.string().trim().max(280).or(z.literal("")).optional(),
-  laborPercent: z.number().min(0).max(100),
+  laborWorkers: z.number().int().nonnegative().default(0),
+  laborHours: z.number().nonnegative().default(0),
+  laborRate: z.number().nonnegative().default(0),
   items: z.array(quoteItemSchema).min(1),
 });
 export type QuoteStatus = z.infer<typeof quoteStatusSchema>;
@@ -126,6 +130,8 @@ export const profileSchema = z.object({
   phone: z.string().trim().max(30).or(z.literal("")),
   currency: z.string().min(3).max(5),
   language: z.enum(["es", "en"]),
+  hasEmployees: z.boolean().default(false),
+  employeeCount: z.number().int().nonnegative().default(0),
 });
 export type Profile = z.infer<typeof profileSchema>;
 

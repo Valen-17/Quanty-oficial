@@ -6,8 +6,12 @@ import {
   type Quote,
 } from "@/stores/quotesStore";
 import { isRemoteQuoteId } from "@/repositories/quotes.repository";
-import { fmtCOP, fmtDate } from "@/lib/format";
+import { fmtDate } from "@/lib/format";
+import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { downloadQuotePdf } from "@/lib/quotePdf";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { useClientsStore } from "@/stores/clientsStore";
+import { sendQuoteEmail } from "@/lib/sendQuoteEmail";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
@@ -17,6 +21,16 @@ interface Props {
 }
 
 export function QuoteDetailModal({ quote, onClose }: Props) {
+  const fmtMoney = useFmtMoney();
+  const currency = useSettingsStore((s) => s.profile.currency);
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const profile = useSettingsStore((s) => s.profile);
+  const clients = useClientsStore((s) => s.clients);
+
+  const fireEmail = (q: Quote, event: "enviada" | "aprobada" | "rechazada") => {
+    const email = q.clientId ? clients.find((c) => c.id === q.clientId)?.email ?? "" : "";
+    void sendQuoteEmail(q, email, profile.businessName ?? "", currency, exchangeRate, event);
+  };
   const setStatus = useQuotesStore((s) => s.setStatus);
   const approveQuote = useQuotesStore((s) => s.approveQuote);
   const approveQuoteOnRemote = useQuotesStore((s) => s.approveQuoteOnRemote);
@@ -67,10 +81,13 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
       if (isRemoteQuoteId(quote.id)) {
         const r = await approveQuoteOnRemote(quote.id);
         if (!r.ok && r.error) alert(r.error);
+        else fireEmail(quote, "aprobada");
       } else {
         const result = approveQuote(quote.id);
         if (!result.ok && result.error) {
           alert(result.error);
+        } else {
+          fireEmail(quote, "aprobada");
         }
       }
     } finally {
@@ -88,6 +105,7 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
       } else {
         setStatus(quote.id, "enviada");
       }
+      fireEmail(quote, "enviada");
     } finally {
       setActionBusy(false);
     }
@@ -106,6 +124,7 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
       } else {
         setStatus(quote.id, "rechazada");
       }
+      fireEmail(quote, "rechazada");
     } finally {
       setActionBusy(false);
     }
@@ -212,6 +231,14 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
                 Cliente
               </p>
               <p className="font-semibold text-foreground">{quote.clientName}</p>
+              {(() => {
+                const email = quote.clientId
+                  ? clients.find((c) => c.id === quote.clientId)?.email
+                  : undefined;
+                return email ? (
+                  <p className="text-xs text-muted-foreground">{email}</p>
+                ) : null;
+              })()}
             </div>
 
             <table className="w-full text-sm">
@@ -228,9 +255,9 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
                   <tr key={it.productId} className="border-b border-border/50">
                     <td className="py-2.5 font-medium text-foreground">{it.name}</td>
                     <td className="py-2.5 text-center font-mono">{it.quantity}</td>
-                    <td className="py-2.5 text-right font-mono">{fmtCOP.format(it.unitPrice)}</td>
-                    <td className="py-2.5 text-right font-mono font-semibold">
-                      {fmtCOP.format(it.unitPrice * it.quantity)}
+                     <td className="py-2.5 text-right font-mono">{fmtMoney(it.unitPrice)}</td>
+                     <td className="py-2.5 text-right font-mono font-semibold">
+                       {fmtMoney(it.unitPrice * it.quantity)}
                     </td>
                   </tr>
                 ))}
@@ -241,16 +268,22 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
               <dl className="w-full max-w-xs space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Subtotal</dt>
-                  <dd className="font-mono font-medium">{fmtCOP.format(quote.subtotal)}</dd>
+                   <dd className="font-mono font-medium">{fmtMoney(quote.subtotal)}</dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Mano de obra ({quote.laborPercent}%)</dt>
-                  <dd className="font-mono font-medium">{fmtCOP.format(quote.laborAmount)}</dd>
-                </div>
+                {(quote.laborEmployeeAmount ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">
+                      M.O. empleados ({quote.laborWorkers ?? 0} × {quote.laborHours ?? 0}h)
+                    </dt>
+                     <dd className="font-mono font-medium">
+                       {fmtMoney(quote.laborEmployeeAmount ?? 0)}
+                    </dd>
+                  </div>
+                )}
                 <div className="mt-1 flex items-baseline justify-between border-t border-border pt-2">
                   <dt className="text-sm font-bold text-foreground">Total</dt>
-                  <dd className="font-mono text-lg font-bold text-primary">
-                    {fmtCOP.format(quote.total)}
+                     <dd className="font-mono text-lg font-bold text-primary">
+                       {fmtMoney(quote.total)}
                   </dd>
                 </div>
               </dl>
@@ -279,7 +312,12 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => downloadQuotePdf(quote)}
+              onClick={() => {
+                const client = quote.clientId
+                  ? clients.find((c) => c.id === quote.clientId)
+                  : undefined;
+                downloadQuotePdf(quote, currency, client?.email ?? "", exchangeRate);
+              }}
               disabled={actionBusy}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
             >

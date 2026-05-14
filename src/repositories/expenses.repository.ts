@@ -16,8 +16,7 @@ export type ExpensesRepoResult<T> =
 
 export type ExpensesDeleteResult = { ok: true } | { ok: false; error: string };
 
-const UUID_V4 =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function isRemoteExpenseId(id: string): boolean {
   return UUID_V4.test(id.trim());
@@ -33,7 +32,10 @@ function parseAmountFromRow(value: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-function formatSupabaseError(prefix: string, err: { message?: string; code?: string; details?: string } | null): string {
+function formatSupabaseError(
+  prefix: string,
+  err: { message?: string; code?: string; details?: string } | null,
+): string {
   if (!err) return `${prefix}: respuesta sin detalle.`;
   const parts = [err.message, err.code, err.details].filter(Boolean);
   return parts.length ? `${prefix}: ${parts.join(" — ")}` : `${prefix}: error desconocido.`;
@@ -125,7 +127,11 @@ export async function getExpenses(): Promise<ExpensesRepoResult<Expense[]>> {
     .order("expense_date", { ascending: false });
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudieron cargar los gastos", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudieron cargar los gastos", error),
+    };
   }
 
   const rows = (data ?? []) as ExpenseRow[];
@@ -165,7 +171,11 @@ export async function createExpense(input: ExpenseInput): Promise<ExpensesRepoRe
     .single();
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudo crear el gasto", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudo crear el gasto", error),
+    };
   }
   if (!data) {
     return { ok: false, data: null, error: "El servidor no devolvió el gasto creado." };
@@ -174,7 +184,10 @@ export async function createExpense(input: ExpenseInput): Promise<ExpensesRepoRe
   return expenseRowToDomainSafe(data as ExpenseRow);
 }
 
-export async function updateExpense(id: string, input: ExpenseInput): Promise<ExpensesRepoResult<Expense>> {
+export async function updateExpense(
+  id: string,
+  input: ExpenseInput,
+): Promise<ExpensesRepoResult<Expense>> {
   if (!isRemoteExpenseId(id)) {
     return { ok: false, data: null, error: "Este gasto solo existe en local (sin UUID remoto)." };
   }
@@ -204,7 +217,11 @@ export async function updateExpense(id: string, input: ExpenseInput): Promise<Ex
     .single();
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudo actualizar el gasto", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudo actualizar el gasto", error),
+    };
   }
   if (!data) {
     return { ok: false, data: null, error: "Gasto no encontrado, archivado o sin permiso (RLS)." };
@@ -256,7 +273,10 @@ export async function safeCreateExpense(input: ExpenseInput): Promise<ExpensesRe
   }
 }
 
-export async function safeUpdateExpense(id: string, input: ExpenseInput): Promise<ExpensesRepoResult<Expense>> {
+export async function safeUpdateExpense(
+  id: string,
+  input: ExpenseInput,
+): Promise<ExpensesRepoResult<Expense>> {
   try {
     return await updateExpense(id, input);
   } catch (e) {

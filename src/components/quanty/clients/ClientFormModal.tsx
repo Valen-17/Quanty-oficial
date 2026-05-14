@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { X, UserPlus } from "lucide-react";
-import { clientInputSchema, useClientsStore, type Client, type ClientInput } from "@/stores/clientsStore";
+import {
+  clientInputSchema,
+  useClientsStore,
+  type Client,
+  type ClientInput,
+} from "@/stores/clientsStore";
 import { cn } from "@/lib/utils";
 
 interface Props {

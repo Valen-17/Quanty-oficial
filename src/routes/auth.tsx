@@ -35,6 +35,8 @@ const signupSchema = loginSchema.extend({
     .min(2, { message: "Mínimo 2 caracteres" })
     .max(80, { message: "Máximo 80 caracteres" }),
   businessName: z.string().trim().max(80).optional().or(z.literal("")),
+  hasEmployees: z.boolean().default(false),
+  employeeCount: z.number().int().min(0).max(9999).default(0),
 });
 
 function AuthPage() {
@@ -52,14 +54,15 @@ function AuthPage() {
     password: "",
     fullName: "",
     businessName: "",
+    hasEmployees: false,
+    employeeCount: "",
   });
 
   useEffect(() => {
     if (!loading && user) navigate({ to: search.redirect });
   }, [loading, user, navigate, search.redirect]);
 
-  const setField = (k: keyof typeof form, v: string) =>
-    setForm((f) => ({ ...f, [k]: v }));
+  const setField = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -80,9 +83,7 @@ function AuthPage() {
       setSubmitting(false);
       if (err) {
         setError(
-          err.message.includes("Invalid login")
-            ? "Correo o contraseña incorrectos"
-            : err.message,
+          err.message.includes("Invalid login") ? "Correo o contraseña incorrectos" : err.message,
         );
         return;
       }
@@ -90,7 +91,11 @@ function AuthPage() {
       return;
     }
 
-    const parsed = signupSchema.safeParse(form);
+    const parsed = signupSchema.safeParse({
+      ...form,
+      hasEmployees: form.hasEmployees,
+      employeeCount: form.hasEmployees ? Number(form.employeeCount) || 0 : 0,
+    });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Datos inválidos");
       return;
@@ -104,15 +109,15 @@ function AuthPage() {
         data: {
           full_name: parsed.data.fullName,
           business_name: parsed.data.businessName ?? "",
+          has_employees: parsed.data.hasEmployees,
+          employee_count: parsed.data.hasEmployees ? parsed.data.employeeCount : 0,
         },
       },
     });
     setSubmitting(false);
     if (err) {
       setError(
-        err.message.includes("already registered")
-          ? "Este correo ya está registrado"
-          : err.message,
+        err.message.includes("already registered") ? "Este correo ya está registrado" : err.message,
       );
       return;
     }
@@ -201,6 +206,52 @@ function AuthPage() {
                     autoComplete="organization"
                   />
                 </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-foreground">¿Tienes empleados?</p>
+                  <div className="flex gap-3">
+                    {(["Sí", "No"] as const).map((opt) => {
+                      const isYes = opt === "Sí";
+                      const active = form.hasEmployees === isYes;
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              hasEmployees: isYes,
+                              employeeCount: isYes ? f.employeeCount : "",
+                            }))
+                          }
+                          className={cn(
+                            "flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors",
+                            active
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-input bg-background text-muted-foreground hover:bg-muted",
+                          )}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {form.hasEmployees && (
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-foreground">
+                      ¿Cuántos empleados?
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={9999}
+                      value={form.employeeCount}
+                      onChange={(e) => setField("employeeCount", e.target.value)}
+                      placeholder="Ej. 5"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/30"
+                    />
+                  </div>
+                )}
               </>
             )}
 
@@ -218,9 +269,7 @@ function AuthPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-semibold text-foreground">
-                Contraseña
-              </label>
+              <label className="mb-1 block text-xs font-semibold text-foreground">Contraseña</label>
               <div className="relative">
                 <input
                   type={showPwd ? "text" : "password"}

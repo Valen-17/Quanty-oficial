@@ -69,7 +69,16 @@ export function RevenueChart() {
                 fontSize: "12px",
                 boxShadow: "0 10px 30px -10px oklch(0.48 0.22 295 / 0.25)",
               }}
-              formatter={(value: any) => [new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(Number(value)), ""] as [string, string]}
+              formatter={(value: any) =>
+                [
+                  new Intl.NumberFormat("es-CO", {
+                    style: "currency",
+                    currency: "COP",
+                    maximumFractionDigits: 0,
+                  }).format(Number(value)),
+                  "",
+                ] as [string, string]
+              }
             />
             <Area
               type="monotone"

@@ -20,8 +20,10 @@ export type Theme = Preferences["theme"];
 interface SettingsState {
   profile: Profile;
   preferences: Preferences;
+  exchangeRate: number;
   updateProfile: (data: Profile) => void;
   updatePreferences: (data: Partial<Preferences>) => void;
+  setExchangeRate: (rate: number) => void;
   resetAll: () => void;
 }
 
@@ -32,6 +34,8 @@ const defaultProfile: Profile = {
   phone: "",
   currency: "COP",
   language: "es",
+  hasEmployees: false,
+  employeeCount: 0,
 };
 
 const defaultPreferences: Preferences = {
@@ -47,14 +51,16 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       profile: defaultProfile,
       preferences: defaultPreferences,
+      exchangeRate: 1,
       updateProfile: (data) => set({ profile: data }),
       updatePreferences: (data) => set((s) => ({ preferences: { ...s.preferences, ...data } })),
-      resetAll: () => set({ profile: defaultProfile, preferences: defaultPreferences }),
+      setExchangeRate: (rate) => set({ exchangeRate: rate > 0 ? rate : 1 }),
+      resetAll: () => set({ profile: defaultProfile, preferences: defaultPreferences, exchangeRate: 1 }),
     }),
     {
       ...buildPersistOptions<SettingsState, SettingsPersisted>({
         name: "quanty-settings-v1",
-        version: 2,
+        version: 4,
         schema: settingsPersistedSchema,
         fallback: () => ({ profile: defaultProfile, preferences: defaultPreferences }),
         partialize: (state) => ({ profile: state.profile, preferences: state.preferences }),
@@ -65,9 +71,22 @@ export const useSettingsStore = create<SettingsState>()(
               businessName: state.profile.businessName ?? "",
               email: state.profile.email ?? "",
               phone: state.profile.phone ?? "",
+              hasEmployees: state.profile.hasEmployees ?? false,
+              employeeCount: state.profile.employeeCount ?? 0,
             },
             preferences: { ...defaultPreferences, ...state.preferences },
           }),
+          3: (state) => ({
+            profile: { ...state.profile },
+            preferences: { ...defaultPreferences, ...state.preferences },
+          }),
+          4: (state) => {
+            const { laborPercent: _lp, ...profileWithout } = state.profile as Record<string, unknown>;
+            return {
+              profile: profileWithout,
+              preferences: { ...defaultPreferences, ...state.preferences },
+            };
+          },
         },
       }),
       storage: createScopedJsonStorage(),

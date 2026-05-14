@@ -71,11 +71,13 @@ export function ClientCombobox({ value, onChange, onSelectClient, onCreateNew, e
             <span className="text-muted-foreground">Selecciona un cliente</span>
           )}
         </span>
-        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")}
+        />
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-[var(--shadow-elegant)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover shadow-[var(--shadow-elegant)] animate-in fade-in zoom-in-95 duration-150">
           <div className="relative border-b border-border">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input

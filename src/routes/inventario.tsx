@@ -1,14 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import {
-  Plus,
-  Search,
-  Package,
-  Pencil,
-  Trash2,
-  Minus,
-  Plus as PlusIcon,
-} from "lucide-react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { Plus, Search, Package, Pencil, Trash2, Minus, Plus as PlusIcon } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { ProductFormModal } from "@/components/quanty/inventory/ProductFormModal";
 import { ProductImage } from "@/components/quanty/inventory/ProductImage";
@@ -20,7 +12,7 @@ import {
   type Product,
   type ProductInput,
 } from "@/components/quanty/inventory/types";
-import { fmtCOP } from "@/lib/format";
+import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { cn } from "@/lib/utils";
 import { isRemoteProductId } from "@/repositories/products.repository";
 import { useInventoryStore } from "@/stores/inventoryStore";
@@ -48,6 +40,7 @@ const filters: { id: Filter; label: string }[] = [
 ];
 
 function InventarioPage() {
+  const fmtMoney = useFmtMoney();
   const products = useInventoryStore((s) => s.products);
   const createProductOnRemote = useInventoryStore((s) => s.createProductOnRemote);
   const updateProductOnRemote = useInventoryStore((s) => s.updateProductOnRemote);
@@ -150,11 +143,7 @@ function InventarioPage() {
         <SummaryStat label="Total productos" value={products.length.toString()} />
         <SummaryStat label="Disponibles" value={counts.disponible.toString()} accent="success" />
         <SummaryStat label="Pocas unidades" value={counts.pocas.toString()} accent="warning" />
-        <SummaryStat
-          label="Valor inventario"
-          value={fmtCOP.format(totalValue)}
-          accent="primary"
-        />
+        <SummaryStat label="Valor inventario" value={fmtMoney(totalValue)} accent="primary" />
       </section>
 
       {/* Toolbar: buscador + filtros */}
@@ -228,7 +217,7 @@ function InventarioPage() {
                         <span className="line-clamp-1">{p.description || "—"}</span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold text-foreground sm:px-5">
-                        {fmtCOP.format(p.price)}
+                        {fmtMoney(p.price)}
                       </td>
                       <td className="px-4 py-3 sm:px-5">
                         <div className="flex items-center justify-center gap-1">
@@ -323,12 +312,50 @@ function SummaryStat({
     warning: "text-warning-foreground",
     primary: "text-primary",
   };
+  const spanRef = useRef<HTMLSpanElement>(null);
+  const [overflow, setOverflow] = useState(0);
+
+  useEffect(() => {
+    const el = spanRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+    const calc = () => {
+      const diff = el.scrollWidth - parent.clientWidth;
+      setOverflow(diff > 0 ? diff : 0);
+    };
+    calc();
+    const ro = new ResizeObserver(calc);
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, [value]);
+
+  const handleMouseEnter = () => {
+    if (spanRef.current && overflow > 0)
+      spanRef.current.style.transform = `translateX(-${overflow}px)`;
+  };
+
+  const handleMouseLeave = () => {
+    if (spanRef.current) spanRef.current.style.transform = "translateX(0px)";
+  };
+
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
+    <div
+      className="rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 font-display text-xl font-bold sm:text-2xl", accents[accent])}>
-        {value}
-      </p>
+      <div className="mt-1 overflow-hidden">
+        <p className={cn("font-display text-xl font-bold sm:text-2xl", accents[accent])}>
+          <span
+            ref={spanRef}
+            className="inline-block whitespace-nowrap transition-transform duration-700 ease-in-out"
+          >
+            {value}
+          </span>
+        </p>
+      </div>
     </div>
   );
 }

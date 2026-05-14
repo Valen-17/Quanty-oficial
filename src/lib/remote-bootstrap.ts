@@ -10,9 +10,27 @@ import {
 } from "@/stores/remoteBootstrapStore";
 import { useAgendaStore } from "@/stores/agendaStore";
 import { useQuotesStore } from "@/stores/quotesStore";
+import { useSettingsStore } from "@/stores/settingsStore";
+
+async function syncProfileIntoSettingsStore(userId: string): Promise<void> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("full_name, business_name, phone, has_employees, employee_count")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!data) return;
+  const current = useSettingsStore.getState().profile;
+  useSettingsStore.getState().updateProfile({
+    ...current,
+    fullName: data.full_name ?? current.fullName,
+    businessName: data.business_name ?? current.businessName,
+    phone: data.phone ?? current.phone,
+    hasEmployees: data.has_employees ?? current.hasEmployees,
+    employeeCount: data.employee_count ?? current.employeeCount,
+  });
+}
 
 function clearModuleRemoteErrors() {
-  useClientsStore.getState().clearRemoteClientsError();
   useInventoryStore.getState().clearRemoteProductsError();
   useQuotesStore.getState().clearRemoteQuotesError();
   useExpensesStore.getState().clearRemoteExpensesError();
@@ -59,6 +77,9 @@ export async function rehydrateThenBootstrapRemoteModules(
   }
   if (signal.aborted) return;
   if (!(await assertStillSameUser(expectedUserId, signal))) return;
+
+  await syncProfileIntoSettingsStore(expectedUserId);
+  if (signal.aborted) return;
 
   clearModuleRemoteErrors();
   const generation = useRemoteBootstrapStore.getState().startRemoteBootstrap(expectedUserId);

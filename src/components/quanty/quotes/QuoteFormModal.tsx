@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { X, FileText, Search, Plus, Minus, Trash2, AlertTriangle } from "lucide-react";
+import { X, FileText, Search, Plus, Minus, Trash2, AlertTriangle, Users } from "lucide-react";
 import {
   calcTotals,
   quoteInputSchema,
@@ -9,11 +9,12 @@ import {
 } from "@/stores/quotesStore";
 import { useInventoryStore } from "@/stores/inventoryStore";
 import { useClientsStore, type ClientInput } from "@/stores/clientsStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { ClientCombobox } from "@/components/quanty/clients/ClientCombobox";
 import { ClientFormModal } from "@/components/quanty/clients/ClientFormModal";
 import { ProductImage } from "@/components/quanty/inventory/ProductImage";
-import { fmtCOP } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useFmtMoney } from "@/hooks/useFmtCurrency";
 
 interface Props {
   open: boolean;
@@ -23,14 +24,28 @@ interface Props {
 }
 
 export function QuoteFormModal({ open, onClose, onCreated }: Props) {
+  const fmtMoney = useFmtMoney();
   const products = useInventoryStore((s) => s.products);
   const createClientOnRemote = useClientsStore((s) => s.createClientOnRemote);
+  const quotes = useQuotesStore((s) => s.quotes);
   const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
+  const profile = useSettingsStore((s) => s.profile);
+
+  const usedWorkers = useMemo(
+    () =>
+      quotes
+        .filter((q) => q.status !== "rechazada")
+        .reduce((sum, q) => sum + (q.laborWorkers ?? 0), 0),
+    [quotes],
+  );
+  const availableWorkers = Math.max(0, profile.employeeCount - usedWorkers);
 
   const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [clientName, setClientName] = useState("");
   const [notes, setNotes] = useState("");
-  const [laborPercent, setLaborPercent] = useState("20");
+  const [laborWorkers, setLaborWorkers] = useState("0");
+  const [laborHours, setLaborHours] = useState("0");
+  const [laborRate, setLaborRate] = useState("0");
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [query, setQuery] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -42,13 +57,15 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setClientId(undefined);
       setClientName("");
       setNotes("");
-      setLaborPercent("20");
+      setLaborWorkers(profile.hasEmployees ? String(availableWorkers) : "0");
+      setLaborHours("0");
+      setLaborRate("0");
       setItems([]);
       setQuery("");
       setErrors({});
       setSubmitting(false);
     }
-  }, [open]);
+  }, [open, profile.hasEmployees, profile.employeeCount, availableWorkers]);
 
   useEffect(() => {
     if (!open) return;
@@ -66,8 +83,14 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   }, [products, query, items]);
 
   const totals = useMemo(
-    () => calcTotals(items, Number(laborPercent) || 0),
-    [items, laborPercent],
+    () =>
+      calcTotals(
+        items,
+        Number(laborWorkers) || 0,
+        Number(laborHours) || 0,
+        Number(laborRate) || 0,
+      ),
+    [items, laborWorkers, laborHours, laborRate],
   );
 
   const addItem = (productId: string) => {
@@ -82,10 +105,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
           i.productId === productId ? { ...i, quantity: i.quantity + 1 } : i,
         );
       }
-      return [
-        ...prev,
-        { productId: p.id, name: p.name, unitPrice: p.price, quantity: 1 },
-      ];
+      return [...prev, { productId: p.id, name: p.name, unitPrice: p.price, quantity: 1 }];
     });
   };
 
@@ -107,14 +127,20 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
     setItems((prev) => prev.filter((i) => i.productId !== productId));
 
   // Stock disponible por producto en el contexto del item ya agregado
-  const stockOf = (productId: string) =>
-    products.find((p) => p.id === productId)?.units ?? 0;
+  const stockOf = (productId: string) => products.find((p) => p.id === productId)?.units ?? 0;
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} />
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={onClose}
+      />
       <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col rounded-t-2xl bg-card shadow-[var(--shadow-elegant)] animate-in slide-in-from-bottom-4 duration-300 sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
@@ -128,7 +154,11 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Cerrar">
+          <button
+            onClick={onClose}
+            className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Cerrar"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -136,12 +166,17 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
         <form
           onSubmit={async (e) => {
             e.preventDefault();
+            const workers = Number(laborWorkers) || 0;
+            const hours = Number(laborHours) || 0;
+            const rate = Number(laborRate) || 0;
             const parsed = quoteInputSchema.safeParse({
               clientId,
               clientName,
               clientNameSnapshot: clientName,
               notes,
-              laborPercent: laborPercent === "" ? NaN : Number(laborPercent),
+              laborWorkers: workers,
+              laborHours: hours,
+              laborRate: rate,
               items,
             });
             if (!parsed.success) {
@@ -220,7 +255,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                                   {p.name}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {fmtCOP.format(p.price)} · stock: {p.units}
+                                  {fmtMoney(p.price)} · stock: {p.units}
                                 </p>
                               </div>
                             </div>
@@ -237,8 +272,8 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
             </div>
 
             {/* Items y datos */}
-            <div className="flex min-h-0 flex-col md:col-span-3">
-              <div className="space-y-3 border-b border-border p-4">
+            <div className="flex min-h-0 flex-col overflow-visible md:col-span-3">
+              <div className="space-y-3 overflow-visible border-b border-border p-4">
                 <Field label="Cliente" error={errors.clientName} required>
                   <ClientCombobox
                     value={clientName}
@@ -252,31 +287,75 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                     error={!!errors.clientName}
                   />
                 </Field>
-                <Field
-                  label={`Mano de obra (${Number(laborPercent) || 0}%)`}
-                  error={errors.laborPercent}
-                  required
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={laborPercent}
-                      onChange={(e) => setLaborPercent(e.target.value)}
-                      className="flex-1 accent-[oklch(0.48_0.22_295)]"
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={laborPercent}
-                      onChange={(e) => setLaborPercent(e.target.value)}
-                      className={cn(inputCls(!!errors.laborPercent), "w-20 text-right")}
-                    />
+
+                {profile.hasEmployees && (
+                  <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                        <Users className="h-3.5 w-3.5 text-primary" />
+                        Mano de obra por empleados
+                      </div>
+                      {profile.employeeCount > 0 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {availableWorkers} de {profile.employeeCount} disponibles
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">
+                          Trabajadores
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={availableWorkers}
+                          value={laborWorkers}
+                          onChange={(e) => {
+                            setLaborWorkers(String(Math.min(Number(e.target.value) || 0, availableWorkers)));
+                          }}
+                          className={cn(inputCls(!!errors.laborWorkers), "text-right")}
+                        />
+                        {errors.laborWorkers && (
+                          <span className="mt-1 block text-[10px] font-medium text-destructive">
+                            {errors.laborWorkers}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">
+                          Horas
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          value={laborHours}
+                          onChange={(e) => setLaborHours(e.target.value)}
+                          className={cn(inputCls(false), "text-right")}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">
+                          Tarifa/hora
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={laborRate}
+                          onChange={(e) => setLaborRate(e.target.value)}
+                          className={cn(inputCls(false), "text-right")}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-right text-xs text-muted-foreground">
+                      M.O. empleados:{" "}
+                        <span className="font-mono font-semibold text-foreground">
+                          {fmtMoney(totals.laborEmployeeAmount)}
+                      </span>
+                    </p>
                   </div>
-                </Field>
+                )}
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col">
@@ -306,9 +385,11 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                         return (
                           <li key={it.productId} className="flex items-center gap-2 px-2 py-2">
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-foreground">{it.name}</p>
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {it.name}
+                              </p>
                               <p className="text-xs text-muted-foreground">
-                                {fmtCOP.format(it.unitPrice)} · máx {max}
+                                {fmtMoney(it.unitPrice)} · máx {max}
                               </p>
                             </div>
                             <div className="flex items-center gap-1">
@@ -334,7 +415,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                               </button>
                             </div>
                             <span className="hidden w-24 text-right font-mono text-sm font-semibold text-foreground sm:inline">
-                              {fmtCOP.format(it.unitPrice * it.quantity)}
+                              {fmtMoney(it.unitPrice * it.quantity)}
                             </span>
                             <button
                               type="button"
@@ -369,13 +450,10 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
 
           {/* Resumen + acciones */}
           <div className="border-t border-border bg-muted/30 px-5 py-4">
-            <div className="grid grid-cols-3 gap-3 text-sm">
-              <Total label="Subtotal" value={fmtCOP.format(totals.subtotal)} />
-              <Total
-                label={`Mano de obra ${Number(laborPercent) || 0}%`}
-                value={fmtCOP.format(totals.laborAmount)}
-              />
-              <Total label="Total" value={fmtCOP.format(totals.total)} accent />
+            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+              <Total label="Subtotal" value={fmtMoney(totals.subtotal)} />
+              <Total label="M.O. empleados" value={fmtMoney(totals.laborEmployeeAmount)} />
+              <Total label="Total" value={fmtMoney(totals.total)} accent />
             </div>
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button

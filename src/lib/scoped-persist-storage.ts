@@ -19,7 +19,7 @@ const underlying: StateStorage = {
   getItem(name) {
     if (typeof localStorage === "undefined") return null;
     const key = scopedKey(name);
-    let value = localStorage.getItem(key);
+    const value = localStorage.getItem(key);
     if (value !== null) return value;
     if (scopedUserId !== null) {
       const legacy = localStorage.getItem(name);

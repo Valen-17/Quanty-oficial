@@ -22,7 +22,8 @@ import {
   type ExpenseType,
 } from "@/stores/expensesStore";
 import { useQuotesStore } from "@/stores/quotesStore";
-import { fmtCOP, fmtDate } from "@/lib/format";
+import { fmtDate } from "@/lib/format";
+import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { cn } from "@/lib/utils";
 import { isRemoteExpenseId } from "@/repositories/expenses.repository";
 import { selectFinancialSummary, selectQuoteCountByStatus } from "@/stores/selectors";
@@ -43,6 +44,7 @@ export const Route = createFileRoute("/balance")({
 type Filter = "todos" | ExpenseType;
 
 function BalancePage() {
+  const fmtMoney = useFmtMoney();
   const expenses = useExpensesStore((s) => s.expenses);
   const createExpense = useExpensesStore((s) => s.createExpense);
   const updateExpense = useExpensesStore((s) => s.updateExpense);
@@ -130,28 +132,28 @@ function BalancePage() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Ingresos aprobados"
-          value={fmtCOP.format(income)}
+          value={fmtMoney(income)}
           hint={`${quoteByStatus.aprobada} cotizaciones`}
           icon={TrendingUp}
           accent="success"
         />
         <KpiCard
           label="Costos fijos"
-          value={fmtCOP.format(fixedTotal)}
+          value={fmtMoney(fixedTotal)}
           hint={`${expenses.filter((e) => e.type === "fijo").length} conceptos`}
           icon={Receipt}
           accent="primary"
         />
         <KpiCard
           label="Costos variables"
-          value={fmtCOP.format(variableTotal)}
+          value={fmtMoney(variableTotal)}
           hint={`${expenses.filter((e) => e.type === "variable").length} conceptos`}
           icon={TrendingDown}
           accent="warning"
         />
         <KpiCard
           label={profit >= 0 ? "Ganancia" : "Pérdida"}
-          value={fmtCOP.format(Math.abs(profit))}
+          value={fmtMoney(Math.abs(profit))}
           hint={`Margen ${margin.toFixed(1)}%`}
           icon={PiggyBank}
           accent={profit >= 0 ? "success" : "muted"}
@@ -206,12 +208,12 @@ function BalancePage() {
           <div className="mt-4 space-y-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Ingresos</span>
-              <span className="font-mono font-semibold text-success">+{fmtCOP.format(income)}</span>
+                   <span className="font-mono font-semibold text-success">+{fmtMoney(income)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Egresos</span>
               <span className="font-mono font-semibold text-destructive">
-                -{fmtCOP.format(totalExpenses)}
+                -{fmtMoney(totalExpenses)}
               </span>
             </div>
             <div className="border-t border-border pt-3">
@@ -226,7 +228,7 @@ function BalancePage() {
                   )}
                 >
                   {profit >= 0 ? "+" : "-"}
-                  {fmtCOP.format(Math.abs(profit))}
+                  {fmtMoney(Math.abs(profit))}
                 </span>
               </div>
             </div>
@@ -306,7 +308,7 @@ function BalancePage() {
                       {fmtDate.format(e.date)}
                     </td>
                     <td className="px-5 py-3 text-right font-mono font-semibold text-foreground sm:px-6">
-                      {fmtCOP.format(e.amount)}
+                      {fmtMoney(e.amount)}
                     </td>
                     <td className="px-5 py-3 sm:px-6">
                       <div className="flex items-center justify-end gap-1">

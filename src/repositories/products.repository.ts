@@ -10,8 +10,7 @@ export type ProductsRepoResult<T> =
 
 export type ProductsDeleteResult = { ok: true } | { ok: false; error: string };
 
-const UUID_V4 =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function isRemoteProductId(id: string): boolean {
   return UUID_V4.test(id.trim());
@@ -22,7 +21,10 @@ function parsePriceFromRow(value: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-function formatSupabaseError(prefix: string, err: { message?: string; code?: string; details?: string } | null): string {
+function formatSupabaseError(
+  prefix: string,
+  err: { message?: string; code?: string; details?: string } | null,
+): string {
   if (!err) return `${prefix}: respuesta sin detalle.`;
   const parts = [err.message, err.code, err.details].filter(Boolean);
   return parts.length ? `${prefix}: ${parts.join(" — ")}` : `${prefix}: error desconocido.`;
@@ -87,7 +89,11 @@ export async function getProducts(): Promise<ProductsRepoResult<Product[]>> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudieron cargar los productos", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudieron cargar los productos", error),
+    };
   }
 
   const rows = (data ?? []) as ProductRow[];
@@ -128,7 +134,11 @@ export async function createProduct(input: ProductInput): Promise<ProductsRepoRe
     .single();
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudo crear el producto", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudo crear el producto", error),
+    };
   }
   if (!data) {
     return { ok: false, data: null, error: "El servidor no devolvió el producto creado." };
@@ -137,9 +147,16 @@ export async function createProduct(input: ProductInput): Promise<ProductsRepoRe
   return productRowToDomainSafe(data as ProductRow);
 }
 
-export async function updateProduct(id: string, input: ProductInput): Promise<ProductsRepoResult<Product>> {
+export async function updateProduct(
+  id: string,
+  input: ProductInput,
+): Promise<ProductsRepoResult<Product>> {
   if (!isRemoteProductId(id)) {
-    return { ok: false, data: null, error: "Este producto solo existe en local (sin UUID remoto)." };
+    return {
+      ok: false,
+      data: null,
+      error: "Este producto solo existe en local (sin UUID remoto).",
+    };
   }
 
   const parsed = productInputSchema.safeParse(input);
@@ -167,7 +184,11 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Pr
     .single();
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudo actualizar el producto", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudo actualizar el producto", error),
+    };
   }
   if (!data) {
     return { ok: false, data: null, error: "Producto no encontrado o sin permiso (RLS)." };
@@ -219,7 +240,10 @@ export async function safeCreateProduct(input: ProductInput): Promise<ProductsRe
   }
 }
 
-export async function safeUpdateProduct(id: string, input: ProductInput): Promise<ProductsRepoResult<Product>> {
+export async function safeUpdateProduct(
+  id: string,
+  input: ProductInput,
+): Promise<ProductsRepoResult<Product>> {
   try {
     return await updateProduct(id, input);
   } catch (e) {
