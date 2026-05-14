@@ -80,7 +80,7 @@ function CotizacionesPage() {
   };
 
   // Mantener detalle sincronizado si el store cambia (al aprobar/cambiar estado)
-  const liveOpenQuote = openQuote ? quotes.find((q) => q.id === openQuote.id) ?? null : null;
+  const liveOpenQuote = openQuote ? (quotes.find((q) => q.id === openQuote.id) ?? null) : null;
 
   return (
     <AppLayout

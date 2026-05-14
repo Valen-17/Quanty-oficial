@@ -18,7 +18,14 @@ const accentMap: Record<NonNullable<KpiCardProps["accent"]>, string> = {
   muted: "bg-muted text-muted-foreground",
 };
 
-export function KpiCard({ label, value, delta, hint, icon: Icon, accent = "primary" }: KpiCardProps) {
+export function KpiCard({
+  label,
+  value,
+  delta,
+  hint,
+  icon: Icon,
+  accent = "primary",
+}: KpiCardProps) {
   const positive = (delta ?? 0) >= 0;
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-elegant)]">
@@ -31,7 +38,9 @@ export function KpiCard({ label, value, delta, hint, icon: Icon, accent = "prima
             {value}
           </p>
         </div>
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", accentMap[accent])}>
+        <div
+          className={cn("flex h-10 w-10 items-center justify-center rounded-xl", accentMap[accent])}
+        >
           <Icon className="h-5 w-5" />
         </div>
       </div>

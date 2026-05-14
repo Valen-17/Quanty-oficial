@@ -87,7 +87,8 @@ export function downloadQuotePdf(quote: Quote) {
   });
 
   // Totals
-  const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
+  const finalY =
+    (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
   const totalsX = pageWidth - margin - 200;
 
   doc.setFont("helvetica", "normal");
@@ -133,12 +134,9 @@ export function downloadQuotePdf(quote: Quote) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
-  doc.text(
-    `Generado por Quanty · ${fmtDate.format(Date.now())}`,
-    pageWidth / 2,
-    pageHeight - 24,
-    { align: "center" },
-  );
+  doc.text(`Generado por Quanty · ${fmtDate.format(Date.now())}`, pageWidth / 2, pageHeight - 24, {
+    align: "center",
+  });
 
   doc.save(`${quote.folio}-${quote.clientName.replace(/\s+/g, "_")}.pdf`);
 }

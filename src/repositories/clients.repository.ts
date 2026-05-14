@@ -4,14 +4,11 @@ import type { Tables } from "@/integrations/supabase/database.types";
 
 export type ClientRow = Tables<"clients">;
 
-export type ClientsRepoResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; data: null; error: string };
+export type ClientsRepoResult<T> = { ok: true; data: T } | { ok: false; data: null; error: string };
 
 export type ClientsDeleteResult = { ok: true } | { ok: false; error: string };
 
-const UUID_V4 =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function isRemoteClientId(id: string): boolean {
   return UUID_V4.test(id.trim());
@@ -34,7 +31,10 @@ export function clientRowToDomain(row: ClientRow): Client {
   };
 }
 
-function formatSupabaseError(prefix: string, err: { message?: string; code?: string; details?: string } | null): string {
+function formatSupabaseError(
+  prefix: string,
+  err: { message?: string; code?: string; details?: string } | null,
+): string {
   if (!err) return `${prefix}: respuesta sin detalle.`;
   const parts = [err.message, err.code, err.details].filter(Boolean);
   return parts.length ? `${prefix}: ${parts.join(" — ")}` : `${prefix}: error desconocido.`;
@@ -71,7 +71,11 @@ export async function getClients(): Promise<ClientsRepoResult<Client[]>> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudieron cargar los clientes", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudieron cargar los clientes", error),
+    };
   }
 
   const rows = (data ?? []) as ClientRow[];
@@ -103,7 +107,11 @@ export async function createClient(input: ClientInput): Promise<ClientsRepoResul
     .single();
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudo crear el cliente", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudo crear el cliente", error),
+    };
   }
   if (!data) {
     return { ok: false, data: null, error: "El servidor no devolvió el cliente creado." };
@@ -112,7 +120,10 @@ export async function createClient(input: ClientInput): Promise<ClientsRepoResul
   return { ok: true, data: clientRowToDomain(data as ClientRow) };
 }
 
-export async function updateClient(id: string, input: ClientInput): Promise<ClientsRepoResult<Client>> {
+export async function updateClient(
+  id: string,
+  input: ClientInput,
+): Promise<ClientsRepoResult<Client>> {
   if (!isRemoteClientId(id)) {
     return { ok: false, data: null, error: "Este cliente solo existe en local (sin UUID remoto)." };
   }
@@ -141,7 +152,11 @@ export async function updateClient(id: string, input: ClientInput): Promise<Clie
     .single();
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudo actualizar el cliente", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudo actualizar el cliente", error),
+    };
   }
   if (!data) {
     return { ok: false, data: null, error: "Cliente no encontrado o sin permiso (RLS)." };
@@ -193,7 +208,10 @@ export async function safeCreateClient(input: ClientInput): Promise<ClientsRepoR
   }
 }
 
-export async function safeUpdateClient(id: string, input: ClientInput): Promise<ClientsRepoResult<Client>> {
+export async function safeUpdateClient(
+  id: string,
+  input: ClientInput,
+): Promise<ClientsRepoResult<Client>> {
   try {
     return await updateClient(id, input);
   } catch (e) {

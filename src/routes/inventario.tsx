@@ -1,14 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import {
-  Plus,
-  Search,
-  Package,
-  Pencil,
-  Trash2,
-  Minus,
-  Plus as PlusIcon,
-} from "lucide-react";
+import { Plus, Search, Package, Pencil, Trash2, Minus, Plus as PlusIcon } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { ProductFormModal } from "@/components/quanty/inventory/ProductFormModal";
 import { ProductImage } from "@/components/quanty/inventory/ProductImage";
@@ -150,11 +142,7 @@ function InventarioPage() {
         <SummaryStat label="Total productos" value={products.length.toString()} />
         <SummaryStat label="Disponibles" value={counts.disponible.toString()} accent="success" />
         <SummaryStat label="Pocas unidades" value={counts.pocas.toString()} accent="warning" />
-        <SummaryStat
-          label="Valor inventario"
-          value={fmtCOP.format(totalValue)}
-          accent="primary"
-        />
+        <SummaryStat label="Valor inventario" value={fmtCOP.format(totalValue)} accent="primary" />
       </section>
 
       {/* Toolbar: buscador + filtros */}

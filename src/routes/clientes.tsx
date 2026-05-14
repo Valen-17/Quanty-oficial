@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Plus, Search, Users, Mail, Phone, Building2, Pencil, Trash2, FileText } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Users,
+  Mail,
+  Phone,
+  Building2,
+  Pencil,
+  Trash2,
+  FileText,
+} from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { ClientFormModal } from "@/components/quanty/clients/ClientFormModal";
 import { isRemoteClientId } from "@/repositories/clients.repository";
@@ -119,14 +129,14 @@ function ClientesPage() {
         <Stat label="Clientes" value={clients.length.toString()} />
         <Stat
           label="Con cotización"
-          value={Array.from(stats.values()).filter((v) => v.count > 0).length.toString()}
+          value={Array.from(stats.values())
+            .filter((v) => v.count > 0)
+            .length.toString()}
         />
         <Stat label="Cotizaciones" value={quotes.length.toString()} accent="primary" />
         <Stat
           label="Aprobado total"
-          value={fmtCOP.format(
-            Array.from(stats.values()).reduce((s, v) => s + v.sum, 0),
-          )}
+          value={fmtCOP.format(Array.from(stats.values()).reduce((s, v) => s + v.sum, 0))}
           accent="success"
         />
       </section>

@@ -20,8 +20,7 @@ export type QuoteLineItemRow = Tables<"quote_line_items">;
 export type QuotesRepoResult<T> = { ok: true; data: T } | { ok: false; data: null; error: string };
 export type QuotesDeleteResult = { ok: true } | { ok: false; error: string };
 
-const UUID_V4 =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function isRemoteQuoteId(id: string): boolean {
   return UUID_V4.test(id.trim());
@@ -38,7 +37,10 @@ const createRemoteQuoteParamsSchema = quoteInputSchema.extend({
 
 export type CreateRemoteQuoteParams = z.infer<typeof createRemoteQuoteParamsSchema>;
 
-function formatSupabaseError(prefix: string, err: { message?: string; code?: string; details?: string } | null): string {
+function formatSupabaseError(
+  prefix: string,
+  err: { message?: string; code?: string; details?: string } | null,
+): string {
   if (!err) return `${prefix}: respuesta sin detalle.`;
   const parts = [err.message, err.code, err.details].filter(Boolean);
   return parts.length ? `${prefix}: ${parts.join(" — ")}` : `${prefix}: error desconocido.`;
@@ -75,7 +77,8 @@ function lineRowToQuoteItem(row: QuoteLineItemRow): QuotesRepoResult<QuoteItem> 
   if (!Number.isFinite(unitPriceSnapshot) || unitPriceSnapshot < 0) {
     return { ok: false, data: null, error: `Precio snapshot inválido en línea ${row.id}.` };
   }
-  const unitPrice = Number.isFinite(unitPriceRef) && unitPriceRef >= 0 ? unitPriceRef : unitPriceSnapshot;
+  const unitPrice =
+    Number.isFinite(unitPriceRef) && unitPriceRef >= 0 ? unitPriceRef : unitPriceSnapshot;
   const productId =
     row.product_id && row.product_id.trim().length > 0 && isRemoteProductId(row.product_id)
       ? row.product_id.trim()
@@ -115,7 +118,12 @@ function joinedRowToQuote(
   if (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100) {
     return { ok: false, data: null, error: `labor_percent inválido en cotización ${row.id}.` };
   }
-  if (!Number.isFinite(subtotal) || subtotal < 0 || !Number.isFinite(laborAmount) || laborAmount < 0) {
+  if (
+    !Number.isFinite(subtotal) ||
+    subtotal < 0 ||
+    !Number.isFinite(laborAmount) ||
+    laborAmount < 0
+  ) {
     return { ok: false, data: null, error: `Montos inválidos en cotización ${row.id}.` };
   }
   if (!Number.isFinite(total) || total < 0) {
@@ -160,7 +168,14 @@ function quoteItemsToLineInserts(
   items: QuoteItem[],
 ): Pick<
   Tables<"quote_line_items">,
-  "quote_id" | "line_no" | "product_id" | "item_name" | "unit_price" | "product_name_snapshot" | "unit_price_snapshot" | "quantity"
+  | "quote_id"
+  | "line_no"
+  | "product_id"
+  | "item_name"
+  | "unit_price"
+  | "product_name_snapshot"
+  | "unit_price_snapshot"
+  | "quantity"
 >[] {
   return items.map((item, index) => ({
     quote_id: quoteId,
@@ -185,7 +200,11 @@ export async function getQuotes(): Promise<QuotesRepoResult<Quote[]>> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudieron cargar las cotizaciones", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudieron cargar las cotizaciones", error),
+    };
   }
 
   const rows = (data ?? []) as (QuoteRow & { quote_line_items?: QuoteLineItemRow[] | null })[];
@@ -198,10 +217,16 @@ export async function getQuotes(): Promise<QuotesRepoResult<Quote[]>> {
   return { ok: true, data: out };
 }
 
-export async function createQuote(params: CreateRemoteQuoteParams): Promise<QuotesRepoResult<Quote>> {
+export async function createQuote(
+  params: CreateRemoteQuoteParams,
+): Promise<QuotesRepoResult<Quote>> {
   const parsedParams = createRemoteQuoteParamsSchema.safeParse(params);
   if (!parsedParams.success) {
-    return { ok: false, data: null, error: `Datos inválidos: ${parsedParams.error.issues.map((i) => i.message).join("; ")}` };
+    return {
+      ok: false,
+      data: null,
+      error: `Datos inválidos: ${parsedParams.error.issues.map((i) => i.message).join("; ")}`,
+    };
   }
   const p = parsedParams.data;
   if (p.status === "aprobada" && (p.approvedAt == null || !Number.isFinite(p.approvedAt))) {
@@ -252,8 +277,15 @@ export async function createQuote(params: CreateRemoteQuoteParams): Promise<Quot
   const { error: linesError } = await supabase.from("quote_line_items").insert(linePayload);
 
   if (linesError) {
-    await supabase.from("quotes").update({ deleted_at: new Date().toISOString() }).eq("id", quoteId);
-    return { ok: false, data: null, error: formatSupabaseError("No se pudieron crear las líneas de la cotización", linesError) };
+    await supabase
+      .from("quotes")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", quoteId);
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudieron crear las líneas de la cotización", linesError),
+    };
   }
 
   const { data: rejoined, error: readError } = await supabase
@@ -275,7 +307,11 @@ export async function createQuote(params: CreateRemoteQuoteParams): Promise<Quot
 
 export async function updateQuote(quote: Quote): Promise<QuotesRepoResult<Quote>> {
   if (!isRemoteQuoteId(quote.id)) {
-    return { ok: false, data: null, error: "Esta cotización solo existe en local (sin UUID remoto)." };
+    return {
+      ok: false,
+      data: null,
+      error: "Esta cotización solo existe en local (sin UUID remoto).",
+    };
   }
 
   const parsed = quoteSchema.safeParse(quote);
@@ -299,7 +335,11 @@ export async function updateQuote(quote: Quote): Promise<QuotesRepoResult<Quote>
 
   const { error: delErr } = await supabase.from("quote_line_items").delete().eq("quote_id", q.id);
   if (delErr) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudieron actualizar las líneas (delete)", delErr) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudieron actualizar las líneas (delete)", delErr),
+    };
   }
 
   const { error: upErr } = await supabase
@@ -320,13 +360,21 @@ export async function updateQuote(quote: Quote): Promise<QuotesRepoResult<Quote>
     .eq("id", q.id);
 
   if (upErr) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudo actualizar la cotización", upErr) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudo actualizar la cotización", upErr),
+    };
   }
 
   const linePayload = quoteItemsToLineInserts(q.id, items);
   const { error: insErr } = await supabase.from("quote_line_items").insert(linePayload);
   if (insErr) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudieron insertar las líneas actualizadas", insErr) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudieron insertar las líneas actualizadas", insErr),
+    };
   }
 
   const { data: rejoined, error: readError } = await supabase
@@ -336,7 +384,11 @@ export async function updateQuote(quote: Quote): Promise<QuotesRepoResult<Quote>
     .single();
 
   if (readError || !rejoined) {
-    return { ok: false, data: null, error: formatSupabaseError("Cotización actualizada pero no se pudo releer", readError) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("Cotización actualizada pero no se pudo releer", readError),
+    };
   }
 
   return joinedRowToQuote(rejoined as QuoteRow & { quote_line_items?: QuoteLineItemRow[] | null });
@@ -353,7 +405,11 @@ async function fetchQuoteJoinedById(quoteId: string): Promise<QuotesRepoResult<Q
     .maybeSingle();
 
   if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudo cargar la cotización", error) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudo cargar la cotización", error),
+    };
   }
   if (!data) {
     return { ok: false, data: null, error: "Cotización no encontrada o sin permiso." };
@@ -364,7 +420,11 @@ async function fetchQuoteJoinedById(quoteId: string): Promise<QuotesRepoResult<Q
 
 export async function approveQuoteRemote(id: string): Promise<QuotesRepoResult<Quote>> {
   if (!isRemoteQuoteId(id)) {
-    return { ok: false, data: null, error: "Esta cotización solo existe en local (sin UUID remoto)." };
+    return {
+      ok: false,
+      data: null,
+      error: "Esta cotización solo existe en local (sin UUID remoto).",
+    };
   }
 
   const auth = await requireAuthUserId();
@@ -372,7 +432,11 @@ export async function approveQuoteRemote(id: string): Promise<QuotesRepoResult<Q
 
   const { error: rpcError } = await supabase.rpc("approve_quote", { p_quote_id: id });
   if (rpcError) {
-    return { ok: false, data: null, error: formatSupabaseError("No se pudo aprobar la cotización", rpcError) };
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudo aprobar la cotización", rpcError),
+    };
   }
 
   return fetchQuoteJoinedById(id);
@@ -421,7 +485,9 @@ export async function safeGetQuotes(): Promise<QuotesRepoResult<Quote[]>> {
   }
 }
 
-export async function safeCreateQuote(params: CreateRemoteQuoteParams): Promise<QuotesRepoResult<Quote>> {
+export async function safeCreateQuote(
+  params: CreateRemoteQuoteParams,
+): Promise<QuotesRepoResult<Quote>> {
   try {
     return await createQuote(params);
   } catch (e) {

@@ -71,7 +71,9 @@ export function ClientCombobox({ value, onChange, onSelectClient, onCreateNew, e
             <span className="text-muted-foreground">Selecciona un cliente</span>
           )}
         </span>
-        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")}
+        />
       </button>
 
       {open && (

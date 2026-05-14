@@ -58,8 +58,7 @@ function AuthPage() {
     if (!loading && user) navigate({ to: search.redirect });
   }, [loading, user, navigate, search.redirect]);
 
-  const setField = (k: keyof typeof form, v: string) =>
-    setForm((f) => ({ ...f, [k]: v }));
+  const setField = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -80,9 +79,7 @@ function AuthPage() {
       setSubmitting(false);
       if (err) {
         setError(
-          err.message.includes("Invalid login")
-            ? "Correo o contraseña incorrectos"
-            : err.message,
+          err.message.includes("Invalid login") ? "Correo o contraseña incorrectos" : err.message,
         );
         return;
       }
@@ -110,9 +107,7 @@ function AuthPage() {
     setSubmitting(false);
     if (err) {
       setError(
-        err.message.includes("already registered")
-          ? "Este correo ya está registrado"
-          : err.message,
+        err.message.includes("already registered") ? "Este correo ya está registrado" : err.message,
       );
       return;
     }
@@ -218,9 +213,7 @@ function AuthPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-semibold text-foreground">
-                Contraseña
-              </label>
+              <label className="mb-1 block text-xs font-semibold text-foreground">Contraseña</label>
               <div className="relative">
                 <input
                   type={showPwd ? "text" : "password"}

@@ -11,14 +11,14 @@ Never use npm or yarn.
 
 ## Scripts
 
-| Task | Command |
-|---|---|
-| Dev server | `bun run dev` |
-| Build (prod) | `bun run build` |
-| Build (dev) | `bun run build:dev` |
-| Preview | `bun run preview` |
-| Lint | `bun run lint` |
-| Format | `bun run format` |
+| Task         | Command             |
+| ------------ | ------------------- |
+| Dev server   | `bun run dev`       |
+| Build (prod) | `bun run build`     |
+| Build (dev)  | `bun run build:dev` |
+| Preview      | `bun run preview`   |
+| Lint         | `bun run lint`      |
+| Format       | `bun run format`    |
 
 Never invent scripts. Check `package.json` first.
 

@@ -65,10 +65,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       .slice(0, 8);
   }, [products, query, items]);
 
-  const totals = useMemo(
-    () => calcTotals(items, Number(laborPercent) || 0),
-    [items, laborPercent],
-  );
+  const totals = useMemo(() => calcTotals(items, Number(laborPercent) || 0), [items, laborPercent]);
 
   const addItem = (productId: string) => {
     const p = products.find((x) => x.id === productId);
@@ -82,10 +79,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
           i.productId === productId ? { ...i, quantity: i.quantity + 1 } : i,
         );
       }
-      return [
-        ...prev,
-        { productId: p.id, name: p.name, unitPrice: p.price, quantity: 1 },
-      ];
+      return [...prev, { productId: p.id, name: p.name, unitPrice: p.price, quantity: 1 }];
     });
   };
 
@@ -107,14 +101,20 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
     setItems((prev) => prev.filter((i) => i.productId !== productId));
 
   // Stock disponible por producto en el contexto del item ya agregado
-  const stockOf = (productId: string) =>
-    products.find((p) => p.id === productId)?.units ?? 0;
+  const stockOf = (productId: string) => products.find((p) => p.id === productId)?.units ?? 0;
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} />
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={onClose}
+      />
       <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col rounded-t-2xl bg-card shadow-[var(--shadow-elegant)] animate-in slide-in-from-bottom-4 duration-300 sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
@@ -128,7 +128,11 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Cerrar">
+          <button
+            onClick={onClose}
+            className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Cerrar"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -306,7 +310,9 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                         return (
                           <li key={it.productId} className="flex items-center gap-2 px-2 py-2">
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-foreground">{it.name}</p>
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {it.name}
+                              </p>
                               <p className="text-xs text-muted-foreground">
                                 {fmtCOP.format(it.unitPrice)} · máx {max}
                               </p>
