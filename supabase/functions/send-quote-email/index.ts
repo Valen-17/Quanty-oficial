@@ -72,7 +72,8 @@ serve(async (req) => {
 
     const meta = EVENT_META[eventType];
     const biz: string = businessName ?? "";
-    const from = biz ? `${biz} via Quanty <noreply@quanty.app>` : "Quanty <noreply@quanty.app>";
+    const from = biz ? `${biz} via Quanty <onboarding@resend.dev>` : "Quanty <onboarding@resend.dev>";
+    const to = Deno.env.get("RESEND_TEST_TO") ?? clientEmail;
 
     const itemRows = (quote.items ?? [])
       .map(
@@ -135,7 +136,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from,
-        to: [clientEmail],
+        to: [to],
         subject: meta.subject(quote.folio, biz),
         html,
       }),
