@@ -11,7 +11,8 @@ serve(async (req) => {
   }
 
   try {
-    const { quote, clientEmail, businessName, currency } = await req.json();
+    const { quote, clientEmail, businessName, currency, exchangeRate: rate } = await req.json();
+    const exchangeRate: number = typeof rate === "number" && rate > 0 ? rate : 1;
 
     if (!clientEmail || !quote) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -31,17 +32,18 @@ serve(async (req) => {
     const locale = { COP: "es-CO", USD: "en-US", MXN: "es-MX", EUR: "de-DE" }[currency as string] ?? "es-CO";
     const cur = ["COP", "USD", "MXN", "EUR"].includes(currency) ? currency : "COP";
     const fmt = new Intl.NumberFormat(locale, { style: "currency", currency: cur, maximumFractionDigits: 0 });
+    const cvt = (amount: number) => fmt.format(amount / exchangeRate);
 
     const itemRows = (quote.items ?? [])
       .map(
         (it: { name: string; quantity: number; unitPrice: number }) =>
-          `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${it.name}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">${it.quantity}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-family:monospace">${fmt.format(it.unitPrice)}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;font-weight:bold">${fmt.format(it.unitPrice * it.quantity)}</td></tr>`,
+          `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${it.name}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">${it.quantity}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-family:monospace">${cvt(it.unitPrice)}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;font-weight:bold">${cvt(it.unitPrice * it.quantity)}</td></tr>`,
       )
       .join("");
 
     const laborRow =
       (quote.laborEmployeeAmount ?? 0) > 0
-        ? `<tr><td colspan="3" style="padding:6px 8px;color:#666">M.O. empleados (${quote.laborWorkers ?? 0} × ${quote.laborHours ?? 0}h)</td><td style="padding:6px 8px;text-align:right;font-family:monospace">${fmt.format(quote.laborEmployeeAmount)}</td></tr>`
+        ? `<tr><td colspan="3" style="padding:6px 8px;color:#666">M.O. empleados (${quote.laborWorkers ?? 0} × ${quote.laborHours ?? 0}h)</td><td style="padding:6px 8px;text-align:right;font-family:monospace">${cvt(quote.laborEmployeeAmount)}</td></tr>`
         : "";
 
     const from = businessName ? `${businessName} via Quanty <noreply@quanty.app>` : "Quanty <noreply@quanty.app>";
@@ -71,11 +73,11 @@ serve(async (req) => {
         </thead>
         <tbody>${itemRows}</tbody>
         <tfoot>
-          <tr><td colspan="3" style="padding:8px;color:#666;font-size:13px">Subtotal</td><td style="padding:8px;text-align:right;font-family:monospace;font-size:13px">${fmt.format(quote.subtotal)}</td></tr>
+          <tr><td colspan="3" style="padding:8px;color:#666;font-size:13px">Subtotal</td><td style="padding:8px;text-align:right;font-family:monospace;font-size:13px">${cvt(quote.subtotal)}</td></tr>
           ${laborRow}
           <tr style="border-top:2px solid #eee">
             <td colspan="3" style="padding:10px 8px;font-weight:700;font-size:15px;color:#141414">Total</td>
-            <td style="padding:10px 8px;text-align:right;font-family:monospace;font-size:18px;font-weight:800;color:#5e35b1">${fmt.format(quote.total)}</td>
+            <td style="padding:10px 8px;text-align:right;font-family:monospace;font-size:18px;font-weight:800;color:#5e35b1">${cvt(quote.total)}</td>
           </tr>
         </tfoot>
       </table>

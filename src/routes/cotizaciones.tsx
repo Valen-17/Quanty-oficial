@@ -13,7 +13,7 @@ import {
   type QuoteStatus,
 } from "@/stores/quotesStore";
 import { fmtDate } from "@/lib/format";
-import { useFmtCurrency } from "@/hooks/useFmtCurrency";
+import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { cn } from "@/lib/utils";
 import { useClientsStore } from "@/stores/clientsStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -43,9 +43,10 @@ const filters: { id: Filter; label: string }[] = [
 ];
 
 function CotizacionesPage() {
-  const fmt = useFmtCurrency();
+  const fmtMoney = useFmtMoney();
   const clients = useClientsStore((s) => s.clients);
   const profile = useSettingsStore((s) => s.profile);
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const quotes = useQuotesStore((s) => s.quotes);
   const createQuoteOnRemote = useQuotesStore((s) => s.createQuoteOnRemote);
   const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
@@ -79,7 +80,7 @@ function CotizacionesPage() {
     if (!quote) return false;
     setOpenQuote(quote);
     const client = data.clientId ? clients.find((c) => c.id === data.clientId) : undefined;
-    void sendQuoteEmail(quote, client?.email ?? "", profile.businessName ?? "", profile.currency);
+    void sendQuoteEmail(quote, client?.email ?? "", profile.businessName ?? "", profile.currency, exchangeRate);
     return true;
   };
 
@@ -126,7 +127,7 @@ function CotizacionesPage() {
         <Stat label="Aprobadas" value={stats.byStatus.aprobada.toString()} accent="success" />
         <Stat
           label="Ingresos aprobados"
-          value={fmt.format(stats.totalApproved)}
+          value={fmtMoney(stats.totalApproved)}
           accent="primary"
         />
       </section>
@@ -188,7 +189,7 @@ function CotizacionesPage() {
                       {q.items.length}
                     </td>
                     <td className="px-4 py-3 text-right font-mono font-semibold text-foreground sm:px-5">
-                      {fmt.format(q.total)}
+                      {fmtMoney(q.total)}
                     </td>
                     <td className="px-4 py-3 sm:px-5">
                       <span

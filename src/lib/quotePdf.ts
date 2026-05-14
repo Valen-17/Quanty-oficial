@@ -10,8 +10,9 @@ const STATUS_LABEL: Record<string, string> = {
   rechazada: "Rechazada",
 };
 
-export function downloadQuotePdf(quote: Quote, currency = "COP", clientEmail = "") {
+export function downloadQuotePdf(quote: Quote, currency = "COP", clientEmail = "", exchangeRate = 1) {
   const fmt = makeFmtCurrency(currency);
+  const cvt = (amount: number) => fmt.format(amount / exchangeRate);
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 48;
@@ -71,8 +72,8 @@ export function downloadQuotePdf(quote: Quote, currency = "COP", clientEmail = "
     body: quote.items.map((it) => [
       it.name,
       String(it.quantity),
-      fmt.format(it.unitPrice),
-      fmt.format(it.unitPrice * it.quantity),
+      cvt(it.unitPrice),
+      cvt(it.unitPrice * it.quantity),
     ]),
     margin: { left: margin, right: margin },
     headStyles: {
@@ -100,7 +101,7 @@ export function downloadQuotePdf(quote: Quote, currency = "COP", clientEmail = "
   doc.setTextColor(110, 110, 110);
   doc.text("Subtotal", totalsX, finalY);
   doc.setTextColor(40, 40, 40);
-  doc.text(fmt.format(quote.subtotal), pageWidth - margin, finalY, { align: "right" });
+  doc.text(cvt(quote.subtotal), pageWidth - margin, finalY, { align: "right" });
 
   if ((quote.laborEmployeeAmount ?? 0) > 0) {
     doc.setTextColor(110, 110, 110);
@@ -110,7 +111,7 @@ export function downloadQuotePdf(quote: Quote, currency = "COP", clientEmail = "
       finalY + 16,
     );
     doc.setTextColor(40, 40, 40);
-    doc.text(fmt.format(quote.laborEmployeeAmount ?? 0), pageWidth - margin, finalY + 16, {
+    doc.text(cvt(quote.laborEmployeeAmount ?? 0), pageWidth - margin, finalY + 16, {
       align: "right",
     });
   }
@@ -123,7 +124,7 @@ export function downloadQuotePdf(quote: Quote, currency = "COP", clientEmail = "
   doc.setTextColor(20, 20, 20);
   doc.text("Total", totalsX, finalY + 46);
   doc.setTextColor(94, 53, 177);
-  doc.text(fmt.format(quote.total), pageWidth - margin, finalY + 46, { align: "right" });
+  doc.text(cvt(quote.total), pageWidth - margin, finalY + 46, { align: "right" });
 
   if (quote.notes) {
     const notesY = finalY + 80;

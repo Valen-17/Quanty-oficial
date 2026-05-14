@@ -20,8 +20,10 @@ export type Theme = Preferences["theme"];
 interface SettingsState {
   profile: Profile;
   preferences: Preferences;
+  exchangeRate: number;
   updateProfile: (data: Profile) => void;
   updatePreferences: (data: Partial<Preferences>) => void;
+  setExchangeRate: (rate: number) => void;
   resetAll: () => void;
 }
 
@@ -49,9 +51,11 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       profile: defaultProfile,
       preferences: defaultPreferences,
+      exchangeRate: 1,
       updateProfile: (data) => set({ profile: data }),
       updatePreferences: (data) => set((s) => ({ preferences: { ...s.preferences, ...data } })),
-      resetAll: () => set({ profile: defaultProfile, preferences: defaultPreferences }),
+      setExchangeRate: (rate) => set({ exchangeRate: rate > 0 ? rate : 1 }),
+      resetAll: () => set({ profile: defaultProfile, preferences: defaultPreferences, exchangeRate: 1 }),
     }),
     {
       ...buildPersistOptions<SettingsState, SettingsPersisted>({

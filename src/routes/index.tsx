@@ -21,7 +21,7 @@ import {
   type QuoteInput,
 } from "@/stores/quotesStore";
 import { fmtDate } from "@/lib/format";
-import { useFmtCurrency } from "@/hooks/useFmtCurrency";
+import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { cn } from "@/lib/utils";
 import { firstName, useProfile } from "@/hooks/useProfile";
 import {
@@ -48,9 +48,10 @@ export const Route = createFileRoute("/")({
 });
 
 function DashboardPage() {
-  const fmt = useFmtCurrency();
+  const fmtMoney = useFmtMoney();
   const clients = useClientsStore((s) => s.clients);
   const profile = useSettingsStore((s) => s.profile);
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const inventoryValue = useInventoryStore(selectInventoryValue);
   const inventoryCount = useInventoryStore(selectInventoryCount);
   const quotes = useQuotesStore((s) => s.quotes);
@@ -71,7 +72,7 @@ function DashboardPage() {
     if (!q) return false;
     setOpenQuote(q);
     const client = data.clientId ? clients.find((c) => c.id === data.clientId) : undefined;
-    void sendQuoteEmail(q, client?.email ?? "", profile.businessName ?? "", profile.currency);
+    void sendQuoteEmail(q, client?.email ?? "", profile.businessName ?? "", profile.currency, exchangeRate);
     return true;
   };
 
@@ -136,14 +137,14 @@ function DashboardPage() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Ingresos aprobados"
-          value={fmt.format(approvedTotal)}
+          value={fmtMoney(approvedTotal)}
           hint={`${quoteByStatus.aprobada} cotizaciones`}
           icon={Wallet}
           accent="primary"
         />
         <KpiCard
           label="Valor del inventario"
-          value={fmt.format(inventoryValue)}
+          value={fmtMoney(inventoryValue)}
           hint={`${inventoryCount} ${inventoryCount === 1 ? "producto" : "productos"}`}
           icon={Package}
           accent="success"
@@ -258,7 +259,7 @@ function DashboardPage() {
                       {fmtDate.format(q.createdAt)}
                     </td>
                     <td className="px-5 py-3 text-right font-mono font-semibold text-foreground sm:px-6">
-                      {fmt.format(q.total)}
+                      {fmtMoney(q.total)}
                     </td>
                     <td className="px-5 py-3 sm:px-6">
                       <span

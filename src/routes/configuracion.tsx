@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { nameFromEmail, useProfile } from "@/hooks/useProfile";
 import { AvatarUploader } from "@/components/quanty/AvatarUploader";
+import { fetchCopRate } from "@/lib/exchangeRate";
 
 export const Route = createFileRoute("/configuracion")({
   head: () => ({
@@ -37,6 +38,7 @@ function ConfigPage() {
   const preferences = useSettingsStore((s) => s.preferences);
   const updateLocalProfile = useSettingsStore((s) => s.updateProfile);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
+  const setExchangeRate = useSettingsStore((s) => s.setExchangeRate);
   const resetAll = useSettingsStore((s) => s.resetAll);
 
   const { user } = useAuth();
@@ -65,6 +67,10 @@ function ConfigPage() {
       employeeCount: cloudProfile?.employee_count ?? prev.employeeCount ?? 0,
     }));
   }, [cloudProfile, user, profileLoading]);
+
+  useEffect(() => {
+    fetchCopRate(profile.currency).then(setExchangeRate);
+  }, [profile.currency, setExchangeRate]);
 
   const handleSave = async () => {
     const parsed = profileSchema.safeParse(form);

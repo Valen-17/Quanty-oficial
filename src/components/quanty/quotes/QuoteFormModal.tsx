@@ -14,7 +14,7 @@ import { ClientCombobox } from "@/components/quanty/clients/ClientCombobox";
 import { ClientFormModal } from "@/components/quanty/clients/ClientFormModal";
 import { ProductImage } from "@/components/quanty/inventory/ProductImage";
 import { cn } from "@/lib/utils";
-import { useFmtCurrency } from "@/hooks/useFmtCurrency";
+import { useFmtMoney } from "@/hooks/useFmtCurrency";
 
 interface Props {
   open: boolean;
@@ -24,7 +24,7 @@ interface Props {
 }
 
 export function QuoteFormModal({ open, onClose, onCreated }: Props) {
-  const fmt = useFmtCurrency();
+  const fmtMoney = useFmtMoney();
   const products = useInventoryStore((s) => s.products);
   const createClientOnRemote = useClientsStore((s) => s.createClientOnRemote);
   const quotes = useQuotesStore((s) => s.quotes);
@@ -255,7 +255,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                                   {p.name}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {fmt.format(p.price)} · stock: {p.units}
+                                  {fmtMoney(p.price)} · stock: {p.units}
                                 </p>
                               </div>
                             </div>
@@ -351,7 +351,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                     <p className="text-right text-xs text-muted-foreground">
                       M.O. empleados:{" "}
                         <span className="font-mono font-semibold text-foreground">
-                          {fmt.format(totals.laborEmployeeAmount)}
+                          {fmtMoney(totals.laborEmployeeAmount)}
                       </span>
                     </p>
                   </div>
@@ -389,7 +389,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                                 {it.name}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {fmt.format(it.unitPrice)} · máx {max}
+                                {fmtMoney(it.unitPrice)} · máx {max}
                               </p>
                             </div>
                             <div className="flex items-center gap-1">
@@ -415,7 +415,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                               </button>
                             </div>
                             <span className="hidden w-24 text-right font-mono text-sm font-semibold text-foreground sm:inline">
-                              {fmt.format(it.unitPrice * it.quantity)}
+                              {fmtMoney(it.unitPrice * it.quantity)}
                             </span>
                             <button
                               type="button"
@@ -451,9 +451,9 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
           {/* Resumen + acciones */}
           <div className="border-t border-border bg-muted/30 px-5 py-4">
             <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-              <Total label="Subtotal" value={fmt.format(totals.subtotal)} />
-              <Total label="M.O. empleados" value={fmt.format(totals.laborEmployeeAmount)} />
-              <Total label="Total" value={fmt.format(totals.total)} accent />
+              <Total label="Subtotal" value={fmtMoney(totals.subtotal)} />
+              <Total label="M.O. empleados" value={fmtMoney(totals.laborEmployeeAmount)} />
+              <Total label="Total" value={fmtMoney(totals.total)} accent />
             </div>
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button

@@ -6,11 +6,12 @@ export async function sendQuoteEmail(
   clientEmail: string,
   businessName: string,
   currency: string,
+  exchangeRate = 1,
 ): Promise<void> {
   if (!clientEmail) return;
   try {
     await supabase.functions.invoke("send-quote-email", {
-      body: { quote, clientEmail, businessName, currency },
+      body: { quote, clientEmail, businessName, currency, exchangeRate },
     });
   } catch {
   }
