@@ -247,6 +247,16 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
                   <dt className="text-muted-foreground">Mano de obra ({quote.laborPercent}%)</dt>
                   <dd className="font-mono font-medium">{fmtCOP.format(quote.laborAmount)}</dd>
                 </div>
+                {(quote.laborEmployeeAmount ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">
+                      M.O. empleados ({quote.laborWorkers ?? 0} × {quote.laborHours ?? 0}h)
+                    </dt>
+                    <dd className="font-mono font-medium">
+                      {fmtCOP.format(quote.laborEmployeeAmount ?? 0)}
+                    </dd>
+                  </div>
+                )}
                 <div className="mt-1 flex items-baseline justify-between border-t border-border pt-2">
                   <dt className="text-sm font-bold text-foreground">Total</dt>
                   <dd className="font-mono text-lg font-bold text-primary">

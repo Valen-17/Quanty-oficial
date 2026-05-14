@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { X, FileText, Search, Plus, Minus, Trash2, AlertTriangle } from "lucide-react";
+import { X, FileText, Search, Plus, Minus, Trash2, AlertTriangle, Users } from "lucide-react";
 import {
   calcTotals,
   quoteInputSchema,
@@ -9,6 +9,7 @@ import {
 } from "@/stores/quotesStore";
 import { useInventoryStore } from "@/stores/inventoryStore";
 import { useClientsStore, type ClientInput } from "@/stores/clientsStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { ClientCombobox } from "@/components/quanty/clients/ClientCombobox";
 import { ClientFormModal } from "@/components/quanty/clients/ClientFormModal";
 import { ProductImage } from "@/components/quanty/inventory/ProductImage";
@@ -26,11 +27,15 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const products = useInventoryStore((s) => s.products);
   const createClientOnRemote = useClientsStore((s) => s.createClientOnRemote);
   const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
+  const profile = useSettingsStore((s) => s.profile);
 
   const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [clientName, setClientName] = useState("");
   const [notes, setNotes] = useState("");
   const [laborPercent, setLaborPercent] = useState("20");
+  const [laborWorkers, setLaborWorkers] = useState("0");
+  const [laborHours, setLaborHours] = useState("0");
+  const [laborRate, setLaborRate] = useState("0");
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [query, setQuery] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -43,6 +48,9 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setClientName("");
       setNotes("");
       setLaborPercent("20");
+      setLaborWorkers("0");
+      setLaborHours("0");
+      setLaborRate("0");
       setItems([]);
       setQuery("");
       setErrors({});
@@ -65,7 +73,17 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       .slice(0, 8);
   }, [products, query, items]);
 
-  const totals = useMemo(() => calcTotals(items, Number(laborPercent) || 0), [items, laborPercent]);
+  const totals = useMemo(
+    () =>
+      calcTotals(
+        items,
+        Number(laborPercent) || 0,
+        Number(laborWorkers) || 0,
+        Number(laborHours) || 0,
+        Number(laborRate) || 0,
+      ),
+    [items, laborPercent, laborWorkers, laborHours, laborRate],
+  );
 
   const addItem = (productId: string) => {
     const p = products.find((x) => x.id === productId);
@@ -140,12 +158,29 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
         <form
           onSubmit={async (e) => {
             e.preventDefault();
+            const workers = Number(laborWorkers) || 0;
+            const hours = Number(laborHours) || 0;
+            const rate = Number(laborRate) || 0;
+            if (
+              profile.hasEmployees &&
+              profile.employeeCount > 0 &&
+              workers > profile.employeeCount
+            ) {
+              setErrors((prev) => ({
+                ...prev,
+                laborWorkers: `No puedes asignar más de ${profile.employeeCount} trabajadores`,
+              }));
+              return;
+            }
             const parsed = quoteInputSchema.safeParse({
               clientId,
               clientName,
               clientNameSnapshot: clientName,
               notes,
               laborPercent: laborPercent === "" ? NaN : Number(laborPercent),
+              laborWorkers: workers,
+              laborHours: hours,
+              laborRate: rate,
               items,
             });
             if (!parsed.success) {
@@ -281,6 +316,71 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                     />
                   </div>
                 </Field>
+
+                {profile.hasEmployees && (
+                  <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                      <Users className="h-3.5 w-3.5 text-primary" />
+                      Mano de obra por empleados
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">
+                          Trabajadores
+                          {profile.employeeCount > 0 && (
+                            <span className="ml-1 text-muted-foreground">
+                              (máx {profile.employeeCount})
+                            </span>
+                          )}
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={profile.employeeCount > 0 ? profile.employeeCount : 9999}
+                          value={laborWorkers}
+                          onChange={(e) => setLaborWorkers(e.target.value)}
+                          className={cn(inputCls(!!errors.laborWorkers), "text-right")}
+                        />
+                        {errors.laborWorkers && (
+                          <span className="mt-1 block text-[10px] font-medium text-destructive">
+                            {errors.laborWorkers}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">
+                          Horas
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          value={laborHours}
+                          onChange={(e) => setLaborHours(e.target.value)}
+                          className={cn(inputCls(false), "text-right")}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">
+                          Tarifa/hora
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={laborRate}
+                          onChange={(e) => setLaborRate(e.target.value)}
+                          className={cn(inputCls(false), "text-right")}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-right text-xs text-muted-foreground">
+                      M.O. empleados:{" "}
+                      <span className="font-mono font-semibold text-foreground">
+                        {fmtCOP.format(totals.laborEmployeeAmount)}
+                      </span>
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col">
@@ -375,12 +475,13 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
 
           {/* Resumen + acciones */}
           <div className="border-t border-border bg-muted/30 px-5 py-4">
-            <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <Total label="Subtotal" value={fmtCOP.format(totals.subtotal)} />
               <Total
-                label={`Mano de obra ${Number(laborPercent) || 0}%`}
+                label={`M.O. ${Number(laborPercent) || 0}%`}
                 value={fmtCOP.format(totals.laborAmount)}
               />
+              <Total label="M.O. empleados" value={fmtCOP.format(totals.laborEmployeeAmount)} />
               <Total label="Total" value={fmtCOP.format(totals.total)} accent />
             </div>
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

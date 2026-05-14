@@ -57,13 +57,12 @@ function ConfigPage() {
     syncedRef.current = true;
     setForm((prev) => ({
       ...prev,
-      fullName:
-        cloudProfile?.full_name?.trim() ||
-        nameFromEmail(user?.email) ||
-        prev.fullName,
+      fullName: cloudProfile?.full_name?.trim() || nameFromEmail(user?.email) || prev.fullName,
       businessName: cloudProfile?.business_name ?? prev.businessName ?? "",
       phone: cloudProfile?.phone ?? prev.phone ?? "",
       email: user?.email ?? prev.email ?? "",
+      hasEmployees: cloudProfile?.has_employees ?? prev.hasEmployees ?? false,
+      employeeCount: cloudProfile?.employee_count ?? prev.employeeCount ?? 0,
     }));
   }, [cloudProfile, user, profileLoading]);
 
@@ -84,6 +83,8 @@ function ConfigPage() {
       full_name: parsed.data.fullName,
       business_name: parsed.data.businessName ?? "",
       phone: parsed.data.phone ?? "",
+      has_employees: parsed.data.hasEmployees,
+      employee_count: parsed.data.hasEmployees ? parsed.data.employeeCount : 0,
     });
     setSaving(false);
     if (error) {
@@ -191,6 +192,60 @@ function ConfigPage() {
                   <option value="en">English</option>
                 </select>
               </div>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-border bg-background/60 p-4">
+              <div>
+                <p className="mb-2 text-xs font-semibold text-foreground">¿Tienes empleados?</p>
+                <div className="flex gap-3">
+                  {(["Sí", "No"] as const).map((opt) => {
+                    const isYes = opt === "Sí";
+                    const active = form.hasEmployees === isYes;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            hasEmployees: isYes,
+                            employeeCount: isYes ? f.employeeCount : 0,
+                          }))
+                        }
+                        className={cn(
+                          "flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors",
+                          active
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-input bg-background text-muted-foreground hover:bg-muted",
+                        )}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {form.hasEmployees && (
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-foreground">
+                    Número de empleados
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={9999}
+                    value={form.employeeCount || ""}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        employeeCount: Math.max(0, parseInt(e.target.value, 10) || 0),
+                      }))
+                    }
+                    placeholder="Ej. 5"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">

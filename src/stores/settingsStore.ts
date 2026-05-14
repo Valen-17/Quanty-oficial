@@ -32,6 +32,8 @@ const defaultProfile: Profile = {
   phone: "",
   currency: "COP",
   language: "es",
+  hasEmployees: false,
+  employeeCount: 0,
 };
 
 const defaultPreferences: Preferences = {
@@ -65,6 +67,8 @@ export const useSettingsStore = create<SettingsState>()(
               businessName: state.profile.businessName ?? "",
               email: state.profile.email ?? "",
               phone: state.profile.phone ?? "",
+              hasEmployees: state.profile.hasEmployees ?? false,
+              employeeCount: state.profile.employeeCount ?? 0,
             },
             preferences: { ...defaultPreferences, ...state.preferences },
           }),

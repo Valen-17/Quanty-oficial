@@ -31,6 +31,7 @@ const createRemoteQuoteParamsSchema = quoteInputSchema.extend({
   status: quoteStatusSchema,
   subtotal: z.number().nonnegative(),
   laborAmount: z.number().nonnegative(),
+  laborEmployeeAmount: z.number().nonnegative().default(0),
   total: z.number().nonnegative(),
   approvedAt: z.number().int().nonnegative().optional().nullable(),
 });
@@ -113,6 +114,7 @@ function joinedRowToQuote(
   const laborPercent = parseNumeric(row.labor_percent);
   const subtotal = parseNumeric(row.subtotal);
   const laborAmount = parseNumeric(row.labor_amount);
+  const laborEmployeeAmount = parseNumeric(String(row.labor_employee_amount ?? "0"));
   const total = parseNumeric(row.total);
   const createdAt = Date.parse(row.created_at);
   if (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100) {
@@ -150,6 +152,10 @@ function joinedRowToQuote(
     clientNameSnapshot: row.client_name_snapshot.trim(),
     notes: row.notes ?? "",
     laborPercent,
+    laborWorkers: row.labor_workers ?? 0,
+    laborHours: Number(row.labor_hours ?? 0),
+    laborRate: Number(row.labor_rate ?? 0),
+    laborEmployeeAmount: Number.isFinite(laborEmployeeAmount) ? laborEmployeeAmount : 0,
     items,
     subtotal,
     laborAmount,
@@ -259,6 +265,10 @@ export async function createQuote(
       subtotal: String(p.subtotal),
       labor_amount: String(p.laborAmount),
       total: String(p.total),
+      labor_workers: p.laborWorkers ?? 0,
+      labor_hours: String(p.laborHours ?? 0),
+      labor_rate: String(p.laborRate ?? 0),
+      labor_employee_amount: String(p.laborEmployeeAmount ?? 0),
       approved_at: approvedIso,
     })
     .select("*")
@@ -355,6 +365,10 @@ export async function updateQuote(quote: Quote): Promise<QuotesRepoResult<Quote>
       subtotal: String(q.subtotal),
       labor_amount: String(q.laborAmount),
       total: String(q.total),
+      labor_workers: q.laborWorkers ?? 0,
+      labor_hours: String(q.laborHours ?? 0),
+      labor_rate: String(q.laborRate ?? 0),
+      labor_employee_amount: String(q.laborEmployeeAmount ?? 0),
       approved_at: approvedIso,
     })
     .eq("id", q.id);

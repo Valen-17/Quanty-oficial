@@ -34,11 +34,18 @@ export const quoteInputSchema = domainQuoteInputSchema;
 export type QuoteInput = DomainQuoteInput;
 export type Quote = DomainQuote;
 
-export function calcTotals(items: QuoteItem[], laborPercent: number) {
+export function calcTotals(
+  items: QuoteItem[],
+  laborPercent: number,
+  laborWorkers = 0,
+  laborHours = 0,
+  laborRate = 0,
+) {
   const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
   const laborAmount = Math.round((subtotal * laborPercent) / 100);
-  const total = subtotal + laborAmount;
-  return { subtotal, laborAmount, total };
+  const laborEmployeeAmount = Math.round(laborWorkers * laborHours * laborRate);
+  const total = subtotal + laborAmount + laborEmployeeAmount;
+  return { subtotal, laborAmount, laborEmployeeAmount, total };
 }
 
 function maxCounterFromFolios(quotes: Quote[], current: number): number {
@@ -95,7 +102,13 @@ export const useQuotesStore = create<QuotesState>()(
       },
       createQuoteOnRemote: async (data) => {
         const normalizedItems = normalizeQuoteInputItems(data.items);
-        const totals = calcTotals(normalizedItems, data.laborPercent);
+        const totals = calcTotals(
+          normalizedItems,
+          data.laborPercent,
+          data.laborWorkers ?? 0,
+          data.laborHours ?? 0,
+          data.laborRate ?? 0,
+        );
         const counter = get().counter + 1;
         const folio = `COT-${counter}`;
         const res = await safeCreateQuote({
@@ -158,13 +171,22 @@ export const useQuotesStore = create<QuotesState>()(
       createQuote: (data) => {
         const counter = get().counter + 1;
         const normalizedItems = normalizeQuoteInputItems(data.items);
-        const totals = calcTotals(normalizedItems, data.laborPercent);
+        const totals = calcTotals(
+          normalizedItems,
+          data.laborPercent,
+          data.laborWorkers ?? 0,
+          data.laborHours ?? 0,
+          data.laborRate ?? 0,
+        );
         const quote: Quote = {
           id: createEntityId("q"),
           folio: `COT-${counter}`,
           status: "borrador",
           createdAt: nowTs(),
           notes: data.notes ?? "",
+          laborWorkers: data.laborWorkers ?? 0,
+          laborHours: data.laborHours ?? 0,
+          laborRate: data.laborRate ?? 0,
           ...data,
           clientNameSnapshot: data.clientNameSnapshot ?? data.clientName,
           clientName: data.clientNameSnapshot ?? data.clientName,
@@ -236,6 +258,10 @@ export const useQuotesStore = create<QuotesState>()(
             quotes: state.quotes.map((q) => ({
               ...q,
               notes: q.notes ?? "",
+              laborWorkers: q.laborWorkers ?? 0,
+              laborHours: q.laborHours ?? 0,
+              laborRate: q.laborRate ?? 0,
+              laborEmployeeAmount: q.laborEmployeeAmount ?? 0,
               clientNameSnapshot: q.clientNameSnapshot ?? q.clientName,
               clientName: q.clientNameSnapshot ?? q.clientName,
               items: q.items.map((it) => ({

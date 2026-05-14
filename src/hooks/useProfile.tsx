@@ -8,6 +8,8 @@ export interface ProfileRow {
   business_name: string | null;
   phone: string | null;
   avatar_url: string | null;
+  has_employees: boolean;
+  employee_count: number;
 }
 
 /** Convierte "isabella.arango" / "isabella_arango" / "isabella-arango" → "Isabella Arango" */
@@ -41,7 +43,7 @@ export function useProfile() {
     setLoading(true);
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, full_name, business_name, phone, avatar_url")
+      .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -59,7 +61,7 @@ export function useProfile() {
           .from("profiles")
           .update({ full_name: derived })
           .eq("id", user.id)
-          .select("id, full_name, business_name, phone, avatar_url")
+          .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count")
           .maybeSingle();
         setProfile(updated ?? { ...data, full_name: derived });
         setLoading(false);
@@ -78,14 +80,24 @@ export function useProfile() {
 
   const updateProfile = useCallback(
     async (
-      patch: Partial<Pick<ProfileRow, "full_name" | "business_name" | "phone" | "avatar_url">>,
+      patch: Partial<
+        Pick<
+          ProfileRow,
+          | "full_name"
+          | "business_name"
+          | "phone"
+          | "avatar_url"
+          | "has_employees"
+          | "employee_count"
+        >
+      >,
     ) => {
       if (!user) return { error: new Error("No user") };
       const { data, error } = await supabase
         .from("profiles")
         .update(patch)
         .eq("id", user.id)
-        .select("id, full_name, business_name, phone, avatar_url")
+        .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count")
         .maybeSingle();
       if (!error && data) setProfile(data);
       return { data, error };

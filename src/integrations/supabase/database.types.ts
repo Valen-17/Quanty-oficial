@@ -22,6 +22,8 @@ export type Database = {
           email: string;
           currency: string;
           language: string;
+          has_employees: boolean;
+          employee_count: number;
           created_at: string;
           updated_at: string;
         };
@@ -34,6 +36,8 @@ export type Database = {
           email?: string;
           currency?: string;
           language?: string;
+          has_employees?: boolean;
+          employee_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -46,6 +50,8 @@ export type Database = {
           email?: string;
           currency?: string;
           language?: string;
+          has_employees?: boolean;
+          employee_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -146,6 +152,10 @@ export type Database = {
           subtotal: string;
           labor_amount: string;
           total: string;
+          labor_workers: number;
+          labor_hours: string;
+          labor_rate: string;
+          labor_employee_amount: string;
           created_at: string;
           updated_at: string;
           approved_at: string | null;
@@ -164,6 +174,10 @@ export type Database = {
           subtotal: string;
           labor_amount: string;
           total: string;
+          labor_workers?: number;
+          labor_hours?: string;
+          labor_rate?: string;
+          labor_employee_amount?: string;
           created_at?: string;
           updated_at?: string;
           approved_at?: string | null;
@@ -182,6 +196,10 @@ export type Database = {
           subtotal?: string;
           labor_amount?: string;
           total?: string;
+          labor_workers?: number;
+          labor_hours?: string;
+          labor_rate?: string;
+          labor_employee_amount?: string;
           created_at?: string;
           updated_at?: string;
           approved_at?: string | null;
