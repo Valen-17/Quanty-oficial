@@ -1,0 +1,6 @@
+{
+  "buildCommand": "vite build",
+  "outputDirectory": ".vercel/output",
+  "installCommand": "pnpm install --ignore-scripts",
+  "framework": null
+}
