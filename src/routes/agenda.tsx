@@ -97,6 +97,7 @@ function AgendaPage() {
     return { year: d.getFullYear(), month: d.getMonth() };
   });
   const [selectedDay, setSelectedDay] = useState<number>(() => startOfDay(Date.now()));
+  const [todayKey] = useState<number>(() => startOfDay(Date.now()));
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AgendaEvent | null>(null);
 
@@ -119,12 +120,11 @@ function AgendaPage() {
   const dayEvents = eventsByDay.get(selectedDay) ?? [];
 
   const upcoming = useMemo(() => {
-    const today = startOfDay(Date.now());
     return events
-      .filter((e) => e.date >= today && e.status !== "cancelado" && e.status !== "completado")
+      .filter((e) => e.date >= todayKey && e.status !== "cancelado" && e.status !== "completado")
       .sort((a, b) => a.date - b.date || a.time.localeCompare(b.time))
       .slice(0, 5);
-  }, [events]);
+  }, [events, todayKey]);
 
   const goPrev = () => {
     const m = cursor.month - 1;
@@ -170,8 +170,6 @@ function AgendaPage() {
     createEvent(data);
     return true;
   };
-
-  const todayKey = startOfDay(Date.now());
 
   return (
     <AppLayout

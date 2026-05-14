@@ -73,7 +73,7 @@ export function useProfile() {
 
   useEffect(() => {
     if (authLoading) return;
-    fetchProfile();
+    void fetchProfile();
   }, [authLoading, fetchProfile]);
 
   const updateProfile = useCallback(

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Settings,
   User,
@@ -13,12 +13,7 @@ import {
   Monitor,
 } from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
-import {
-  profileSchema,
-  useSettingsStore,
-  type Profile,
-  type Theme,
-} from "@/stores/settingsStore";
+import { profileSchema, useSettingsStore, type Profile, type Theme } from "@/stores/settingsStore";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { nameFromEmail, useProfile } from "@/hooks/useProfile";
@@ -45,16 +40,21 @@ function ConfigPage() {
   const resetAll = useSettingsStore((s) => s.resetAll);
 
   const { user } = useAuth();
-  const { profile: cloudProfile, updateProfile: updateCloudProfile, loading: profileLoading } = useProfile();
+  const {
+    profile: cloudProfile,
+    updateProfile: updateCloudProfile,
+    loading: profileLoading,
+  } = useProfile();
 
   const [form, setForm] = useState<Profile>(profile);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const syncedRef = useRef(false);
 
-  // Sincroniza el formulario con los datos reales del usuario autenticado
   useEffect(() => {
-    if (profileLoading) return;
+    if (profileLoading || syncedRef.current) return;
+    syncedRef.current = true;
     setForm((prev) => ({
       ...prev,
       fullName:
@@ -112,9 +112,7 @@ function ConfigPage() {
             </div>
             <div>
               <h2 className="font-display text-lg font-bold text-foreground">Perfil</h2>
-              <p className="text-xs text-muted-foreground">
-                Datos personales y de tu negocio
-              </p>
+              <p className="text-xs text-muted-foreground">Datos personales y de tu negocio</p>
             </div>
           </div>
 
@@ -138,9 +136,7 @@ function ConfigPage() {
                 )}
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-foreground">
-                  Negocio
-                </label>
+                <label className="mb-1 block text-xs font-semibold text-foreground">Negocio</label>
                 <input
                   value={form.businessName}
                   onChange={(e) => setField("businessName", e.target.value)}
@@ -158,9 +154,7 @@ function ConfigPage() {
                   onChange={(e) => setField("email", e.target.value)}
                   className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/30"
                 />
-                {errors.email && (
-                  <p className="mt-1 text-xs text-destructive">{errors.email}</p>
-                )}
+                {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-foreground">Teléfono</label>
@@ -200,11 +194,7 @@ function ConfigPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
-              {savedAt && (
-                <span className="mr-auto text-xs text-success">
-                  ✓ Cambios guardados
-                </span>
-              )}
+              {savedAt && <span className="mr-auto text-xs text-success">✓ Cambios guardados</span>}
               <button
                 onClick={handleSave}
                 disabled={saving}
@@ -276,9 +266,7 @@ function ConfigPage() {
                     }
                     className={cn(
                       "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
-                      preferences[key as keyof typeof preferences]
-                        ? "bg-primary"
-                        : "bg-muted",
+                      preferences[key as keyof typeof preferences] ? "bg-primary" : "bg-muted",
                     )}
                     aria-pressed={!!preferences[key as keyof typeof preferences]}
                   >
@@ -302,9 +290,7 @@ function ConfigPage() {
                 <Shield className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="font-display text-lg font-bold text-foreground">
-                  Zona delicada
-                </h2>
+                <h2 className="font-display text-lg font-bold text-foreground">Zona delicada</h2>
                 <p className="text-xs text-muted-foreground">
                   Restablece tu perfil a los valores por defecto.
                 </p>
