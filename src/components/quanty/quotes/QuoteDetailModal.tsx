@@ -11,6 +11,7 @@ import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { downloadQuotePdf } from "@/lib/quotePdf";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useClientsStore } from "@/stores/clientsStore";
+import { sendQuoteEmail } from "@/lib/sendQuoteEmail";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
@@ -23,7 +24,13 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
   const fmtMoney = useFmtMoney();
   const currency = useSettingsStore((s) => s.profile.currency);
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const profile = useSettingsStore((s) => s.profile);
   const clients = useClientsStore((s) => s.clients);
+
+  const fireEmail = (q: Quote, event: "enviada" | "aprobada" | "rechazada") => {
+    const email = q.clientId ? clients.find((c) => c.id === q.clientId)?.email ?? "" : "";
+    void sendQuoteEmail(q, email, profile.businessName ?? "", currency, exchangeRate, event);
+  };
   const setStatus = useQuotesStore((s) => s.setStatus);
   const approveQuote = useQuotesStore((s) => s.approveQuote);
   const approveQuoteOnRemote = useQuotesStore((s) => s.approveQuoteOnRemote);
@@ -74,10 +81,13 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
       if (isRemoteQuoteId(quote.id)) {
         const r = await approveQuoteOnRemote(quote.id);
         if (!r.ok && r.error) alert(r.error);
+        else fireEmail(quote, "aprobada");
       } else {
         const result = approveQuote(quote.id);
         if (!result.ok && result.error) {
           alert(result.error);
+        } else {
+          fireEmail(quote, "aprobada");
         }
       }
     } finally {
@@ -95,6 +105,7 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
       } else {
         setStatus(quote.id, "enviada");
       }
+      fireEmail(quote, "enviada");
     } finally {
       setActionBusy(false);
     }
@@ -113,6 +124,7 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
       } else {
         setStatus(quote.id, "rechazada");
       }
+      fireEmail(quote, "rechazada");
     } finally {
       setActionBusy(false);
     }
