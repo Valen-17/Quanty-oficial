@@ -12,7 +12,7 @@ import {
   type Product,
   type ProductInput,
 } from "@/components/quanty/inventory/types";
-import { fmtCOP } from "@/lib/format";
+import { useFmtCurrency } from "@/hooks/useFmtCurrency";
 import { cn } from "@/lib/utils";
 import { isRemoteProductId } from "@/repositories/products.repository";
 import { useInventoryStore } from "@/stores/inventoryStore";
@@ -40,6 +40,7 @@ const filters: { id: Filter; label: string }[] = [
 ];
 
 function InventarioPage() {
+  const fmt = useFmtCurrency();
   const products = useInventoryStore((s) => s.products);
   const createProductOnRemote = useInventoryStore((s) => s.createProductOnRemote);
   const updateProductOnRemote = useInventoryStore((s) => s.updateProductOnRemote);
@@ -142,7 +143,7 @@ function InventarioPage() {
         <SummaryStat label="Total productos" value={products.length.toString()} />
         <SummaryStat label="Disponibles" value={counts.disponible.toString()} accent="success" />
         <SummaryStat label="Pocas unidades" value={counts.pocas.toString()} accent="warning" />
-        <SummaryStat label="Valor inventario" value={fmtCOP.format(totalValue)} accent="primary" />
+        <SummaryStat label="Valor inventario" value={fmt.format(totalValue)} accent="primary" />
       </section>
 
       {/* Toolbar: buscador + filtros */}
@@ -216,7 +217,7 @@ function InventarioPage() {
                         <span className="line-clamp-1">{p.description || "—"}</span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold text-foreground sm:px-5">
-                        {fmtCOP.format(p.price)}
+                        {fmt.format(p.price)}
                       </td>
                       <td className="px-4 py-3 sm:px-5">
                         <div className="flex items-center justify-center gap-1">

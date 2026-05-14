@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Quote } from "@/stores/quotesStore";
-import { fmtCOP, fmtDate } from "@/lib/format";
+import { fmtDate, makeFmtCurrency } from "@/lib/format";
 
 const STATUS_LABEL: Record<string, string> = {
   borrador: "Borrador",
@@ -10,16 +10,15 @@ const STATUS_LABEL: Record<string, string> = {
   rechazada: "Rechazada",
 };
 
-export function downloadQuotePdf(quote: Quote) {
+export function downloadQuotePdf(quote: Quote, currency = "COP", clientEmail = "") {
+  const fmt = makeFmtCurrency(currency);
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 48;
 
-  // Brand strip
-  doc.setFillColor(94, 53, 177); // primary-ish purple
+  doc.setFillColor(94, 53, 177);
   doc.rect(0, 0, pageWidth, 6, "F");
 
-  // Header
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(94, 53, 177);
@@ -36,7 +35,6 @@ export function downloadQuotePdf(quote: Quote) {
   doc.text(`Fecha: ${fmtDate.format(quote.createdAt)}`, margin, 88);
   doc.text(`Estado: ${STATUS_LABEL[quote.status] ?? quote.status}`, margin, 100);
 
-  // Brand block (right)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(20, 20, 20);
@@ -46,7 +44,6 @@ export function downloadQuotePdf(quote: Quote) {
   doc.setTextColor(110, 110, 110);
   doc.text("Insumos & Cotizaciones", pageWidth - margin, 74, { align: "right" });
 
-  // Client
   doc.setDrawColor(230, 230, 230);
   doc.line(margin, 118, pageWidth - margin, 118);
 
@@ -59,15 +56,23 @@ export function downloadQuotePdf(quote: Quote) {
   doc.setTextColor(20, 20, 20);
   doc.text(quote.clientName, margin, 156);
 
-  // Items table
+  let clientBlockEnd = 156;
+  if (clientEmail) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(110, 110, 110);
+    doc.text(clientEmail, margin, 172);
+    clientBlockEnd = 172;
+  }
+
   autoTable(doc, {
-    startY: 180,
+    startY: clientBlockEnd + 24,
     head: [["Insumo", "Cant.", "P. Unit.", "Total"]],
     body: quote.items.map((it) => [
       it.name,
       String(it.quantity),
-      fmtCOP.format(it.unitPrice),
-      fmtCOP.format(it.unitPrice * it.quantity),
+      fmt.format(it.unitPrice),
+      fmt.format(it.unitPrice * it.quantity),
     ]),
     margin: { left: margin, right: margin },
     headStyles: {
@@ -86,7 +91,6 @@ export function downloadQuotePdf(quote: Quote) {
     theme: "grid",
   });
 
-  // Totals
   const finalY =
     (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20;
   const totalsX = pageWidth - margin - 200;
@@ -96,7 +100,7 @@ export function downloadQuotePdf(quote: Quote) {
   doc.setTextColor(110, 110, 110);
   doc.text("Subtotal", totalsX, finalY);
   doc.setTextColor(40, 40, 40);
-  doc.text(fmtCOP.format(quote.subtotal), pageWidth - margin, finalY, { align: "right" });
+  doc.text(fmt.format(quote.subtotal), pageWidth - margin, finalY, { align: "right" });
 
   if ((quote.laborEmployeeAmount ?? 0) > 0) {
     doc.setTextColor(110, 110, 110);
@@ -106,7 +110,7 @@ export function downloadQuotePdf(quote: Quote) {
       finalY + 16,
     );
     doc.setTextColor(40, 40, 40);
-    doc.text(fmtCOP.format(quote.laborEmployeeAmount ?? 0), pageWidth - margin, finalY + 16, {
+    doc.text(fmt.format(quote.laborEmployeeAmount ?? 0), pageWidth - margin, finalY + 16, {
       align: "right",
     });
   }
@@ -119,9 +123,8 @@ export function downloadQuotePdf(quote: Quote) {
   doc.setTextColor(20, 20, 20);
   doc.text("Total", totalsX, finalY + 46);
   doc.setTextColor(94, 53, 177);
-  doc.text(fmtCOP.format(quote.total), pageWidth - margin, finalY + 46, { align: "right" });
+  doc.text(fmt.format(quote.total), pageWidth - margin, finalY + 46, { align: "right" });
 
-  // Notes
   if (quote.notes) {
     const notesY = finalY + 80;
     doc.setFillColor(248, 248, 250);
@@ -137,7 +140,6 @@ export function downloadQuotePdf(quote: Quote) {
     doc.text(lines, margin + 12, notesY + 34);
   }
 
-  // Footer
   const pageHeight = doc.internal.pageSize.getHeight();
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);

@@ -16,7 +16,8 @@ import { ClientFormModal } from "@/components/quanty/clients/ClientFormModal";
 import { isRemoteClientId } from "@/repositories/clients.repository";
 import { useClientsStore, type Client, type ClientInput } from "@/stores/clientsStore";
 import { useQuotesStore } from "@/stores/quotesStore";
-import { fmtCOP, fmtDate } from "@/lib/format";
+import { fmtDate } from "@/lib/format";
+import { useFmtCurrency } from "@/hooks/useFmtCurrency";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/clientes")({
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/clientes")({
 });
 
 function ClientesPage() {
+  const fmt = useFmtCurrency();
   const clients = useClientsStore((s) => s.clients);
   const createClientOnRemote = useClientsStore((s) => s.createClientOnRemote);
   const updateClientOnRemote = useClientsStore((s) => s.updateClientOnRemote);
@@ -136,7 +138,7 @@ function ClientesPage() {
         <Stat label="Cotizaciones" value={quotes.length.toString()} accent="primary" />
         <Stat
           label="Aprobado total"
-          value={fmtCOP.format(Array.from(stats.values()).reduce((s, v) => s + v.sum, 0))}
+          value={fmt.format(Array.from(stats.values()).reduce((s, v) => s + v.sum, 0))}
           accent="success"
         />
       </section>
@@ -256,7 +258,7 @@ function ClientesPage() {
                     {s?.count ?? 0} {s?.count === 1 ? "cotización" : "cotizaciones"}
                   </span>
                   <span className="font-mono font-semibold text-success">
-                    {fmtCOP.format(s?.sum ?? 0)}
+                    {fmt.format(s?.sum ?? 0)}
                   </span>
                 </footer>
               </article>
