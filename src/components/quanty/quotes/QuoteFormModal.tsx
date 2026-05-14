@@ -48,7 +48,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setClientName("");
       setNotes("");
       setLaborPercent("20");
-      setLaborWorkers("0");
+      setLaborWorkers(profile.hasEmployees ? String(profile.employeeCount) : "0");
       setLaborHours("0");
       setLaborRate("0");
       setItems([]);
@@ -56,7 +56,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setErrors({});
       setSubmitting(false);
     }
-  }, [open]);
+  }, [open, profile.hasEmployees, profile.employeeCount]);
 
   useEffect(() => {
     if (!open) return;
@@ -161,17 +161,6 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
             const workers = Number(laborWorkers) || 0;
             const hours = Number(laborHours) || 0;
             const rate = Number(laborRate) || 0;
-            if (
-              profile.hasEmployees &&
-              profile.employeeCount > 0 &&
-              workers > profile.employeeCount
-            ) {
-              setErrors((prev) => ({
-                ...prev,
-                laborWorkers: `No puedes asignar más de ${profile.employeeCount} trabajadores`,
-              }));
-              return;
-            }
             const parsed = quoteInputSchema.safeParse({
               clientId,
               clientName,
@@ -338,7 +327,10 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                           min={0}
                           max={profile.employeeCount > 0 ? profile.employeeCount : 9999}
                           value={laborWorkers}
-                          onChange={(e) => setLaborWorkers(e.target.value)}
+                          onChange={(e) => {
+                            const max = profile.employeeCount > 0 ? profile.employeeCount : 9999;
+                            setLaborWorkers(String(Math.min(Number(e.target.value) || 0, max)));
+                          }}
                           className={cn(inputCls(!!errors.laborWorkers), "text-right")}
                         />
                         {errors.laborWorkers && (
