@@ -47,7 +47,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setClientId(undefined);
       setClientName("");
       setNotes("");
-      setLaborPercent("20");
+      setLaborPercent(String(profile.laborPercent ?? 20));
       setLaborWorkers(profile.hasEmployees ? String(profile.employeeCount) : "0");
       setLaborHours("0");
       setLaborRate("0");
@@ -56,7 +56,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
       setErrors({});
       setSubmitting(false);
     }
-  }, [open, profile.hasEmployees, profile.employeeCount]);
+  }, [open, profile.hasEmployees, profile.employeeCount, profile.laborPercent]);
 
   useEffect(() => {
     if (!open) return;
@@ -304,6 +304,11 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                       className={cn(inputCls(!!errors.laborPercent), "w-20 text-right")}
                     />
                   </div>
+                  {profile.hasEmployees && profile.employeeCount > 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      ~{Math.max(1, Math.round(profile.employeeCount * ((Number(laborPercent) || 0) / 100)))} empleados
+                    </p>
+                  )}
                 </Field>
 
                 {profile.hasEmployees && (

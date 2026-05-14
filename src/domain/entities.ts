@@ -135,6 +135,7 @@ export const profileSchema = z.object({
   language: z.enum(["es", "en"]),
   hasEmployees: z.boolean().default(false),
   employeeCount: z.number().int().nonnegative().default(0),
+  laborPercent: z.number().min(0).max(100).default(20),
 });
 export type Profile = z.infer<typeof profileSchema>;
 

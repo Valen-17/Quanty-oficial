@@ -63,6 +63,7 @@ function ConfigPage() {
       email: user?.email ?? prev.email ?? "",
       hasEmployees: cloudProfile?.has_employees ?? prev.hasEmployees ?? false,
       employeeCount: cloudProfile?.employee_count ?? prev.employeeCount ?? 0,
+      laborPercent: cloudProfile?.labor_percent ?? prev.laborPercent ?? 20,
     }));
   }, [cloudProfile, user, profileLoading]);
 
@@ -85,6 +86,7 @@ function ConfigPage() {
       phone: parsed.data.phone ?? "",
       has_employees: parsed.data.hasEmployees,
       employee_count: parsed.data.hasEmployees ? parsed.data.employeeCount : 0,
+      labor_percent: parsed.data.laborPercent,
     });
     setSaving(false);
     if (error) {
@@ -246,6 +248,32 @@ function ConfigPage() {
                   />
                 </div>
               )}
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-foreground">
+                  Mano de obra predeterminada ({form.laborPercent ?? 20}%)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={form.laborPercent ?? 20}
+                    onChange={(e) => setField("laborPercent", Number(e.target.value))}
+                    className="flex-1 accent-[oklch(0.48_0.22_295)]"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={form.laborPercent ?? 20}
+                    onChange={(e) =>
+                      setField("laborPercent", Math.min(100, Math.max(0, Number(e.target.value) || 0)))
+                    }
+                    className="w-20 rounded-lg border border-input bg-background px-3 py-2 text-right text-sm focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">

@@ -10,6 +10,7 @@ export interface ProfileRow {
   avatar_url: string | null;
   has_employees: boolean;
   employee_count: number;
+  labor_percent: number;
 }
 
 /** Convierte "isabella.arango" / "isabella_arango" / "isabella-arango" → "Isabella Arango" */
@@ -43,7 +44,7 @@ export function useProfile() {
     setLoading(true);
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count")
+      .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count, labor_percent")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -53,7 +54,6 @@ export function useProfile() {
       return;
     }
 
-    // Si no hay full_name, derivarlo del email y persistirlo
     if (data && (!data.full_name || data.full_name.trim() === "")) {
       const derived = nameFromEmail(user.email);
       if (derived) {
@@ -61,7 +61,7 @@ export function useProfile() {
           .from("profiles")
           .update({ full_name: derived })
           .eq("id", user.id)
-          .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count")
+          .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count, labor_percent")
           .maybeSingle();
         setProfile(updated ?? { ...data, full_name: derived });
         setLoading(false);
@@ -89,6 +89,7 @@ export function useProfile() {
           | "avatar_url"
           | "has_employees"
           | "employee_count"
+          | "labor_percent"
         >
       >,
     ) => {
@@ -97,7 +98,7 @@ export function useProfile() {
         .from("profiles")
         .update(patch)
         .eq("id", user.id)
-        .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count")
+        .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count, labor_percent")
         .maybeSingle();
       if (!error && data) setProfile(data);
       return { data, error };

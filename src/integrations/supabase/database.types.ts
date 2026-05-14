@@ -24,6 +24,7 @@ export type Database = {
           language: string;
           has_employees: boolean;
           employee_count: number;
+          labor_percent: number;
           created_at: string;
           updated_at: string;
         };
@@ -38,6 +39,7 @@ export type Database = {
           language?: string;
           has_employees?: boolean;
           employee_count?: number;
+          labor_percent?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -52,6 +54,7 @@ export type Database = {
           language?: string;
           has_employees?: boolean;
           employee_count?: number;
+          labor_percent?: number;
           created_at?: string;
           updated_at?: string;
         };
