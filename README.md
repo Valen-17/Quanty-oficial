@@ -6,6 +6,8 @@ El núcleo de esta aplicación ha sido desarrollado implementando arquitecturas 
 
 **Ya está en línea** Puedes ver la aplicación en producción aquí: https://quanty-oficial.vercel.app/
 
+Finalmente está elaborado por: Isabella Aristizabal Díaz, Valentina Alejandra Pérez Cardona y Daniela Montoya Quintero.
+
 ---
 
 ## Sobre el Proyecto
@@ -47,4 +49,4 @@ Si deseas clonar el proyecto para contribuir o probarlo en tu entorno local, sig
 
 1. **Clona el repositorio:**
    ```bash
-   git clone [https://github.com/tu-usuario/quanty-core.git]
+   git clone https://github.com/Valen-17/Quanty-oficial.git
