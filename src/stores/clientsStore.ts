@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { createEntityId, nowTs } from "@/domain/common";
 import {
   clientInputSchema as domainClientInputSchema,
   clientsPersistedSchema,
@@ -25,13 +24,10 @@ export type Client = DomainClient;
 
 interface ClientsState {
   clients: Client[];
-  /** Último error de operaciones remotas (no persistido). */
   remoteClientsError: string | null;
-  createClient: (data: ClientInput) => Client;
   updateClient: (id: string, data: ClientInput) => void;
   deleteClient: (id: string) => void;
   clearRemoteClientsError: () => void;
-  /** Sincroniza con Supabase y conserva clientes solo locales (id no UUID). */
   syncClientsFromRemote: () => Promise<boolean>;
   createClientOnRemote: (data: ClientInput) => Promise<Client | null>;
   updateClientOnRemote: (id: string, data: ClientInput) => Promise<boolean>;
@@ -89,19 +85,6 @@ export const useClientsStore = create<ClientsState>()(
           remoteClientsError: null,
         }));
         return true;
-      },
-      createClient: (data) => {
-        const client: Client = {
-          id: createEntityId("c"),
-          createdAt: nowTs(),
-          ...data,
-          email: data.email ?? "",
-          phone: data.phone ?? "",
-          company: data.company ?? "",
-          notes: data.notes ?? "",
-        };
-        set((s) => ({ clients: [client, ...s.clients] }));
-        return client;
       },
       updateClient: (id, data) =>
         set((s) => ({

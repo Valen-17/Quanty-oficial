@@ -47,7 +47,7 @@ function InventarioPage() {
   const softDeleteProductOnRemote = useInventoryStore((s) => s.softDeleteProductOnRemote);
   const updateProduct = useInventoryStore((s) => s.updateProduct);
   const deleteProduct = useInventoryStore((s) => s.deleteProduct);
-  const adjustStock = useInventoryStore((s) => s.adjustStock);
+  const applyStockDelta = useInventoryStore((s) => s.applyStockDelta);
   const remoteProductsError = useInventoryStore((s) => s.remoteProductsError);
   const clearRemoteProductsError = useInventoryStore((s) => s.clearRemoteProductsError);
 
@@ -138,7 +138,6 @@ function InventarioPage() {
         </div>
       )}
 
-      {/* Resumen rápido */}
       <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryStat label="Total productos" value={products.length.toString()} />
         <SummaryStat label="Disponibles" value={counts.disponible.toString()} accent="success" />
@@ -146,7 +145,6 @@ function InventarioPage() {
         <SummaryStat label="Valor inventario" value={fmtMoney(totalValue)} accent="primary" />
       </section>
 
-      {/* Toolbar: buscador + filtros */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -178,7 +176,6 @@ function InventarioPage() {
         </div>
       </div>
 
-      {/* Tabla */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -222,7 +219,7 @@ function InventarioPage() {
                       <td className="px-4 py-3 sm:px-5">
                         <div className="flex items-center justify-center gap-1">
                           <button
-                            onClick={() => adjustStock(p.id, -1)}
+                            onClick={() => applyStockDelta(p.id, -1)}
                             disabled={p.units === 0}
                             className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-all hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label={`Disminuir stock de ${p.name}`}
@@ -233,7 +230,7 @@ function InventarioPage() {
                             {p.units}
                           </span>
                           <button
-                            onClick={() => adjustStock(p.id, 1)}
+                            onClick={() => applyStockDelta(p.id, 1)}
                             className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-all hover:border-success/40 hover:bg-success/10 hover:text-success"
                             aria-label={`Aumentar stock de ${p.name}`}
                           >

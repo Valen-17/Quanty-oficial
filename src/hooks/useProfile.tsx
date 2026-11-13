@@ -1,6 +1,16 @@
-import { useEffect, useState, useCallback } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { nameFromEmail } from "@/lib/names";
+import { mergeCloudProfileIntoSettings } from "@/lib/profile-settings-sync";
 
 export interface ProfileRow {
   id: string;
@@ -10,107 +20,115 @@ export interface ProfileRow {
   avatar_url: string | null;
   has_employees: boolean;
   employee_count: number;
+  currency: string;
+  language: string;
 }
 
-/** Convierte "isabella.arango" / "isabella_arango" / "isabella-arango" → "Isabella Arango" */
-export function nameFromEmail(email?: string | null): string {
-  if (!email) return "";
-  const local = email.split("@")[0] ?? "";
-  return local
-    .split(/[._\-+]+/)
-    .filter(Boolean)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
-    .join(" ");
+export type ProfilePatch = Partial<
+  Pick<
+    ProfileRow,
+    | "full_name"
+    | "business_name"
+    | "phone"
+    | "avatar_url"
+    | "has_employees"
+    | "employee_count"
+    | "currency"
+    | "language"
+  >
+>;
+
+interface ProfileContextValue {
+  profile: ProfileRow | null;
+  loading: boolean;
+  displayName: string;
+  updateProfile: (patch: ProfilePatch) => Promise<{ data: ProfileRow | null; error: Error | null }>;
+  refetch: () => Promise<void>;
 }
 
-export function firstName(fullName?: string | null): string {
-  const n = (fullName ?? "").trim();
-  if (!n) return "";
-  return n.split(/\s+/)[0];
+const PROFILE_COLUMNS =
+  "id, full_name, business_name, phone, avatar_url, has_employees, employee_count, currency, language";
+
+const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
+
+async function loadProfile(userId: string, email: string | undefined): Promise<ProfileRow | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !data) return null;
+  if (data.full_name && data.full_name.trim() !== "") return data;
+  const derived = nameFromEmail(email);
+  if (!derived) return data;
+  const { data: updated } = await supabase
+    .from("profiles")
+    .update({ full_name: derived })
+    .eq("id", userId)
+    .select(PROFILE_COLUMNS)
+    .maybeSingle();
+  return updated ?? { ...data, full_name: derived };
 }
 
-export function useProfile() {
+export function ProfileProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const [profile, setProfile] = useState<ProfileRow | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchProfile = useCallback(async () => {
-    if (!user) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (error) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
-    if (data && (!data.full_name || data.full_name.trim() === "")) {
-      const derived = nameFromEmail(user.email);
-      if (derived) {
-        const { data: updated } = await supabase
-          .from("profiles")
-          .update({ full_name: derived })
-          .eq("id", user.id)
-          .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count")
-          .maybeSingle();
-        setProfile(updated ?? { ...data, full_name: derived });
-        setLoading(false);
-        return;
-      }
-    }
-
-    setProfile(data);
-    setLoading(false);
-  }, [user]);
+  const userId = user?.id ?? null;
+  const userEmail = user?.email;
+  const [state, setState] = useState<{ userId: string | null; profile: ProfileRow | null }>({
+    userId: null,
+    profile: null,
+  });
 
   useEffect(() => {
-    if (authLoading) return;
-    void fetchProfile();
-  }, [authLoading, fetchProfile]);
+    if (authLoading || !userId) return;
+    let cancelled = false;
+    void loadProfile(userId, userEmail).then((profile) => {
+      if (!cancelled) setState({ userId, profile });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, userId, userEmail]);
+
+  const refetch = useCallback(async () => {
+    if (!userId) return;
+    const profile = await loadProfile(userId, userEmail);
+    setState({ userId, profile });
+  }, [userId, userEmail]);
 
   const updateProfile = useCallback(
-    async (
-      patch: Partial<
-        Pick<
-          ProfileRow,
-          | "full_name"
-          | "business_name"
-          | "phone"
-          | "avatar_url"
-          | "has_employees"
-          | "employee_count"
-        >
-      >,
-    ) => {
-      if (!user) return { error: new Error("No user") };
+    async (patch: ProfilePatch) => {
+      if (!userId) return { data: null, error: new Error("No user") };
       const { data, error } = await supabase
         .from("profiles")
         .update(patch)
-        .eq("id", user.id)
-        .select("id, full_name, business_name, phone, avatar_url, has_employees, employee_count")
+        .eq("id", userId)
+        .select(PROFILE_COLUMNS)
         .maybeSingle();
-      if (!error && data) setProfile(data);
-      return { data, error };
+      if (error) return { data: null, error: new Error(error.message) };
+      if (data) {
+        setState({ userId, profile: data });
+        mergeCloudProfileIntoSettings(data);
+      }
+      return { data, error: null };
     },
-    [user],
+    [userId],
   );
 
-  const displayName = profile?.full_name?.trim() || nameFromEmail(user?.email) || "Tu cuenta";
+  const profile = userId && state.userId === userId ? state.profile : null;
+  const loading = authLoading || (!!userId && state.userId !== userId);
+  const displayName = profile?.full_name?.trim() || nameFromEmail(userEmail) || "Tu cuenta";
 
-  return {
-    profile,
-    loading: loading || authLoading,
-    displayName,
-    updateProfile,
-    refetch: fetchProfile,
-  };
+  const value = useMemo(
+    () => ({ profile, loading, displayName, updateProfile, refetch }),
+    [profile, loading, displayName, updateProfile, refetch],
+  );
+
+  return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
+}
+
+export function useProfile() {
+  const ctx = useContext(ProfileContext);
+  if (!ctx) throw new Error("useProfile must be used within ProfileProvider");
+  return ctx;
 }

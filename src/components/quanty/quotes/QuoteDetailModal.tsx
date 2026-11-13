@@ -8,10 +8,9 @@ import {
 import { isRemoteQuoteId } from "@/repositories/quotes.repository";
 import { fmtDate } from "@/lib/format";
 import { useFmtMoney } from "@/hooks/useFmtCurrency";
-import { downloadQuotePdf } from "@/lib/quotePdf";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useClientsStore } from "@/stores/clientsStore";
-import { sendQuoteEmail } from "@/lib/sendQuoteEmail";
+import { findClientEmail, sendQuoteEmail, type QuoteEmailEvent } from "@/lib/sendQuoteEmail";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
@@ -24,19 +23,17 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
   const fmtMoney = useFmtMoney();
   const currency = useSettingsStore((s) => s.profile.currency);
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
-  const profile = useSettingsStore((s) => s.profile);
   const clients = useClientsStore((s) => s.clients);
 
-  const fireEmail = (q: Quote, event: "enviada" | "aprobada" | "rechazada") => {
-    const email = q.clientId ? clients.find((c) => c.id === q.clientId)?.email ?? "" : "";
-    void sendQuoteEmail(q, email, profile.businessName ?? "", currency, exchangeRate, event);
+  const fireEmail = (q: Quote, event: QuoteEmailEvent) => {
+    void sendQuoteEmail(q, event);
   };
   const setStatus = useQuotesStore((s) => s.setStatus);
   const approveQuote = useQuotesStore((s) => s.approveQuote);
   const approveQuoteOnRemote = useQuotesStore((s) => s.approveQuoteOnRemote);
   const getApprovalIssues = useQuotesStore((s) => s.getApprovalIssues);
   const deleteQuote = useQuotesStore((s) => s.deleteQuote);
-  const updateQuoteOnRemote = useQuotesStore((s) => s.updateQuoteOnRemote);
+  const setQuoteStatusOnRemote = useQuotesStore((s) => s.setQuoteStatusOnRemote);
   const softDeleteQuoteOnRemote = useQuotesStore((s) => s.softDeleteQuoteOnRemote);
   const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
   const clearRemoteQuotesError = useQuotesStore((s) => s.clearRemoteQuotesError);
@@ -58,7 +55,6 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
 
   const canApprove = quote.status !== "aprobada" && quote.status !== "rechazada";
 
-  // Verifica si hay stock suficiente para aprobar
   const stockProblems = getApprovalIssues(quote.id);
 
   const handleApprove = async () => {
@@ -100,7 +96,7 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
     setActionBusy(true);
     try {
       if (isRemoteQuoteId(quote.id)) {
-        const ok = await updateQuoteOnRemote({ ...quote, status: "enviada" });
+        const ok = await setQuoteStatusOnRemote(quote.id, "enviada");
         if (!ok) return;
       } else {
         setStatus(quote.id, "enviada");
@@ -119,7 +115,7 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
     }
     try {
       if (isRemoteQuoteId(quote.id)) {
-        const ok = await updateQuoteOnRemote({ ...quote, status: "rechazada" });
+        const ok = await setQuoteStatusOnRemote(quote.id, "rechazada");
         if (!ok) return;
       } else {
         setStatus(quote.id, "rechazada");
@@ -207,7 +203,6 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
           </div>
         )}
 
-        {/* Vista tipo PDF */}
         <div className="flex-1 overflow-y-auto bg-muted/20 px-5 py-6">
           <article className="mx-auto max-w-2xl rounded-xl border border-border bg-background p-6 shadow-sm">
             <header className="mb-6 flex items-start justify-between gap-4 border-b border-border pb-4">
@@ -235,9 +230,7 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
                 const email = quote.clientId
                   ? clients.find((c) => c.id === quote.clientId)?.email
                   : undefined;
-                return email ? (
-                  <p className="text-xs text-muted-foreground">{email}</p>
-                ) : null;
+                return email ? <p className="text-xs text-muted-foreground">{email}</p> : null;
               })()}
             </div>
 
@@ -255,9 +248,9 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
                   <tr key={it.productId} className="border-b border-border/50">
                     <td className="py-2.5 font-medium text-foreground">{it.name}</td>
                     <td className="py-2.5 text-center font-mono">{it.quantity}</td>
-                     <td className="py-2.5 text-right font-mono">{fmtMoney(it.unitPrice)}</td>
-                     <td className="py-2.5 text-right font-mono font-semibold">
-                       {fmtMoney(it.unitPrice * it.quantity)}
+                    <td className="py-2.5 text-right font-mono">{fmtMoney(it.unitPrice)}</td>
+                    <td className="py-2.5 text-right font-mono font-semibold">
+                      {fmtMoney(it.unitPrice * it.quantity)}
                     </td>
                   </tr>
                 ))}
@@ -268,22 +261,22 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
               <dl className="w-full max-w-xs space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Subtotal</dt>
-                   <dd className="font-mono font-medium">{fmtMoney(quote.subtotal)}</dd>
+                  <dd className="font-mono font-medium">{fmtMoney(quote.subtotal)}</dd>
                 </div>
                 {(quote.laborEmployeeAmount ?? 0) > 0 && (
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">
                       M.O. empleados ({quote.laborWorkers ?? 0} × {quote.laborHours ?? 0}h)
                     </dt>
-                     <dd className="font-mono font-medium">
-                       {fmtMoney(quote.laborEmployeeAmount ?? 0)}
+                    <dd className="font-mono font-medium">
+                      {fmtMoney(quote.laborEmployeeAmount ?? 0)}
                     </dd>
                   </div>
                 )}
                 <div className="mt-1 flex items-baseline justify-between border-t border-border pt-2">
                   <dt className="text-sm font-bold text-foreground">Total</dt>
-                     <dd className="font-mono text-lg font-bold text-primary">
-                       {fmtMoney(quote.total)}
+                  <dd className="font-mono text-lg font-bold text-primary">
+                    {fmtMoney(quote.total)}
                   </dd>
                 </div>
               </dl>
@@ -300,7 +293,6 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
           </article>
         </div>
 
-        {/* Acciones */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-5 py-3">
           <button
             onClick={handleDelete}
@@ -312,11 +304,9 @@ export function QuoteDetailModal({ quote, onClose }: Props) {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                const client = quote.clientId
-                  ? clients.find((c) => c.id === quote.clientId)
-                  : undefined;
-                downloadQuotePdf(quote, currency, client?.email ?? "", exchangeRate);
+              onClick={async () => {
+                const { downloadQuotePdf } = await import("@/lib/quotePdf");
+                downloadQuotePdf(quote, currency, findClientEmail(quote.clientId), exchangeRate);
               }}
               disabled={actionBusy}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"

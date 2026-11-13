@@ -29,13 +29,11 @@ export type Expense = DomainExpense;
 
 interface ExpensesState {
   expenses: Expense[];
-  /** Último error de operaciones remotas de gastos (no persistido). */
   remoteExpensesError: string | null;
   createExpense: (data: ExpenseInput) => Expense;
   updateExpense: (id: string, data: ExpenseInput) => void;
   deleteExpense: (id: string) => void;
   clearRemoteExpensesError: () => void;
-  /** Sincroniza con Supabase y conserva gastos solo locales (id no UUID). */
   syncExpensesFromRemote: () => Promise<boolean>;
   createExpenseOnRemote: (data: ExpenseInput) => Promise<Expense | null>;
   updateExpenseOnRemote: (id: string, data: ExpenseInput) => Promise<boolean>;

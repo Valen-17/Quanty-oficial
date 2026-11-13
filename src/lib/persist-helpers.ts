@@ -30,12 +30,16 @@ export function buildPersistOptions<TStore, TPersisted extends object>({
     version,
     partialize,
     migrate: (persistedState, persistedVersion) => {
-      let nextState = parseOrFallback(schema, persistedState, fallback);
-      for (let v = persistedVersion + 1; v <= version; v++) {
-        const migrateStep = migrations[v];
-        if (migrateStep) nextState = migrateStep(nextState);
+      try {
+        let nextState = persistedState as TPersisted;
+        for (let v = persistedVersion + 1; v <= version; v++) {
+          const migrateStep = migrations[v];
+          if (migrateStep) nextState = migrateStep(nextState);
+        }
+        return parseOrFallback(schema, nextState, fallback);
+      } catch {
+        return fallback();
       }
-      return parseOrFallback(schema, nextState, fallback);
     },
     merge: (persistedState, currentState) => {
       const safePersisted = parseOrFallback(schema, persistedState, fallback);

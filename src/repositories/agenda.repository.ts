@@ -6,20 +6,24 @@ import {
   type EventInput,
 } from "@/domain/entities";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  formatSupabaseError,
+  isRemoteEntityId,
+  mapUnknownError,
+  requireAuthUserId,
+  type RepoDeleteResult,
+  type RepoResult,
+} from "@/repositories/shared";
 import type { Tables } from "@/integrations/supabase/database.types";
 import { isRemoteClientId } from "@/repositories/clients.repository";
 import { isRemoteQuoteId } from "@/repositories/quotes.repository";
 
 export type AgendaEventRow = Tables<"agenda_events">;
 
-export type AgendaRepoResult<T> = { ok: true; data: T } | { ok: false; data: null; error: string };
-export type AgendaDeleteResult = { ok: true } | { ok: false; error: string };
+export type AgendaRepoResult<T> = RepoResult<T>;
+export type AgendaDeleteResult = RepoDeleteResult;
 
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function isRemoteAgendaEventId(id: string): boolean {
-  return UUID_V4.test(id.trim());
-}
+export const isRemoteAgendaEventId = isRemoteEntityId;
 
 function parseTimestamp(iso: string): number {
   const ms = Date.parse(iso);
@@ -32,7 +36,6 @@ function startOfDayLocal(ts: number): number {
   return d.getTime();
 }
 
-/** Combina `date` (ms, día del calendario) + `time` HH:mm local → ISO para `scheduled_at`. */
 export function eventInputToScheduledAtIso(input: EventInput): string {
   const [h, m] = input.time.split(":").map((x) => parseInt(x, 10));
   const base = new Date(input.date);
@@ -46,35 +49,6 @@ function scheduledAtIsoToDateAndTime(iso: string): { date: number; time: string 
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return { date, time: `${hh}:${mm}` };
-}
-
-function formatSupabaseError(
-  prefix: string,
-  err: { message?: string; code?: string; details?: string } | null,
-): string {
-  if (!err) return `${prefix}: respuesta sin detalle.`;
-  const parts = [err.message, err.code, err.details].filter(Boolean);
-  return parts.length ? `${prefix}: ${parts.join(" — ")}` : `${prefix}: error desconocido.`;
-}
-
-function mapUnknownError(prefix: string, error: unknown): string {
-  if (error && typeof error === "object" && "message" in error) {
-    const m = (error as { message?: unknown }).message;
-    if (typeof m === "string" && m.length > 0) return `${prefix}: ${m}`;
-  }
-  return `${prefix}: error de red o respuesta inválida.`;
-}
-
-async function requireAuthUserId(): Promise<AgendaRepoResult<string>> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("Auth", error) };
-  }
-  const id = data.user?.id;
-  if (!id) {
-    return { ok: false, data: null, error: "Debes iniciar sesión para usar la agenda remota." };
-  }
-  return { ok: true, data: id };
 }
 
 export function agendaRowToDomain(row: AgendaEventRow): AgendaEvent {
@@ -125,12 +99,13 @@ function quoteIdForInsert(e: Pick<AgendaEvent, "quoteId">): string | null {
 }
 
 export async function getAgendaEvents(): Promise<AgendaRepoResult<AgendaEvent[]>> {
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("la agenda remota");
   if (!auth.ok) return auth;
 
   const { data, error } = await supabase
     .from("agenda_events")
     .select("*")
+    .eq("user_id", auth.data)
     .is("deleted_at", null)
     .order("scheduled_at", { ascending: false });
 
@@ -159,7 +134,7 @@ export async function createAgendaEvent(input: EventInput): Promise<AgendaRepoRe
     return { ok: false, data: null, error: `Datos inválidos: ${msg}` };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("la agenda remota");
   if (!auth.ok) return auth;
 
   const v = parsed.data;
@@ -209,7 +184,7 @@ export async function updateAgendaEvent(
     return { ok: false, data: null, error: `Datos inválidos: ${msg}` };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("la agenda remota");
   if (!auth.ok) return auth;
 
   const e = parsed.data;
@@ -259,7 +234,7 @@ export async function softDeleteAgendaEvent(id: string): Promise<AgendaDeleteRes
     return { ok: false, error: "Este evento solo existe en local (sin UUID remoto)." };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("la agenda remota");
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const now = new Date().toISOString();

@@ -8,12 +8,13 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate({
-        to: "/auth",
-        search: { redirect: location.pathname },
-      });
-    }
+    if (loading || user) return;
+    if (location.pathname.startsWith("/auth")) return;
+    navigate({
+      to: "/auth",
+      search: { redirect: location.pathname, mode: "login" },
+      replace: true,
+    });
   }, [loading, user, navigate, location.pathname]);
 
   if (loading) {

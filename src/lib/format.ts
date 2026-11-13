@@ -15,16 +15,6 @@ export function makeFmtCurrency(currency: string): Intl.NumberFormat {
   });
 }
 
-export const fmtCOP = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "COP",
-  maximumFractionDigits: 0,
-});
-
-export const fmtNumber = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 0,
-});
-
 export const fmtDate = new Intl.DateTimeFormat("es-CO", {
   day: "2-digit",
   month: "short",

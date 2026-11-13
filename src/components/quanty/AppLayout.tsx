@@ -4,6 +4,7 @@ import { DesktopSidebar, MobileSidebar } from "./Sidebar";
 import { RequireAuth } from "./RouteGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { initialsFrom } from "@/lib/names";
 import { useRemoteBootstrapStore } from "@/stores/remoteBootstrapStore";
 
 interface AppLayoutProps {
@@ -11,15 +12,6 @@ interface AppLayoutProps {
   subtitle?: string;
   actions?: ReactNode;
   children: ReactNode;
-}
-
-function getInitials(name?: string | null, email?: string | null) {
-  const source = (name && name.trim()) || (email ? email.split("@")[0] : "");
-  if (!source) return "U";
-  const parts = source.split(/[\s._-]+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? "";
-  const second = parts[1]?.[0] ?? "";
-  return (first + second).toUpperCase() || source[0].toUpperCase();
 }
 
 export function AppLayout({ title, subtitle, actions, children }: AppLayoutProps) {
@@ -39,7 +31,7 @@ function AppLayoutInner({ title, subtitle, actions, children }: AppLayoutProps) 
   const { displayName, profile } = useProfile();
   const isHydratingRemoteData = useRemoteBootstrapStore((s) => s.isHydratingRemoteData);
 
-  const initials = getInitials(displayName, user?.email);
+  const initials = initialsFrom(displayName, user?.email);
   const avatarUrl = profile?.avatar_url || null;
 
   return (

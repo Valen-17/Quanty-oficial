@@ -15,7 +15,6 @@ interface Props {
   initial?: AgendaEvent | null;
   defaultDate?: number;
   onClose: () => void;
-  /** Devuelve true si la operación remota/local tuvo éxito (el padre cierra el modal). */
   onSubmit: (data: EventInput) => boolean | Promise<boolean>;
 }
 
@@ -27,42 +26,32 @@ function toDateInput(ts: number) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function EventFormModal({ open, initial, defaultDate, onClose, onSubmit }: Props) {
+export function EventFormModal(props: Props) {
+  if (!props.open) return null;
+  return (
+    <EventFormModalContent key={props.initial?.id ?? `new-${props.defaultDate ?? ""}`} {...props} />
+  );
+}
+
+function EventFormModalContent({ initial, defaultDate, onClose, onSubmit }: Props) {
   const remoteAgendaError = useAgendaStore((s) => s.remoteAgendaError);
-  const [title, setTitle] = useState("");
-  const [clientName, setClientName] = useState("");
-  const [date, setDate] = useState(toDateInput(Date.now()));
-  const [time, setTime] = useState("09:00");
-  const [location, setLocation] = useState("");
-  const [notes, setNotes] = useState("");
-  const [status, setStatus] = useState<EventStatus>("pendiente");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [clientName, setClientName] = useState(initial?.clientName ?? "");
+  const [date, setDate] = useState(() =>
+    toDateInput(initial ? initial.date : (defaultDate ?? Date.now())),
+  );
+  const [time, setTime] = useState(initial?.time ?? "09:00");
+  const [location, setLocation] = useState(initial?.location ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [status, setStatus] = useState<EventStatus>(initial?.status ?? "pendiente");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
-    if (initial) {
-      setTitle(initial.title);
-      setClientName(initial.clientName);
-      setDate(toDateInput(initial.date));
-      setTime(initial.time);
-      setLocation(initial.location);
-      setNotes(initial.notes);
-      setStatus(initial.status);
-    } else {
-      setTitle("");
-      setClientName("");
-      setDate(toDateInput(defaultDate ?? Date.now()));
-      setTime("09:00");
-      setLocation("");
-      setNotes("");
-      setStatus("pendiente");
-    }
-    setErrors({});
-    setSubmitting(false);
-  }, [open, initial, defaultDate]);
-
-  if (!open) return null;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

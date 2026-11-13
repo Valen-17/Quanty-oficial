@@ -23,14 +23,13 @@ import {
 import { fmtDate } from "@/lib/format";
 import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { cn } from "@/lib/utils";
-import { firstName, useProfile } from "@/hooks/useProfile";
+import { useProfile } from "@/hooks/useProfile";
+import { firstName } from "@/lib/names";
 import {
   selectApprovedIncome,
   selectPendingQuotesCount,
   selectQuoteCountByStatus,
 } from "@/stores/selectors";
-import { useClientsStore } from "@/stores/clientsStore";
-import { useSettingsStore } from "@/stores/settingsStore";
 import { sendQuoteEmail } from "@/lib/sendQuoteEmail";
 
 export const Route = createFileRoute("/")({
@@ -49,9 +48,6 @@ export const Route = createFileRoute("/")({
 
 function DashboardPage() {
   const fmtMoney = useFmtMoney();
-  const clients = useClientsStore((s) => s.clients);
-  const profile = useSettingsStore((s) => s.profile);
-  const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const inventoryValue = useInventoryStore(selectInventoryValue);
   const inventoryCount = useInventoryStore(selectInventoryCount);
   const quotes = useQuotesStore((s) => s.quotes);
@@ -71,8 +67,7 @@ function DashboardPage() {
     const q = await createQuoteOnRemote(data);
     if (!q) return false;
     setOpenQuote(q);
-    const client = data.clientId ? clients.find((c) => c.id === data.clientId) : undefined;
-    void sendQuoteEmail(q, client?.email ?? "", profile.businessName ?? "", profile.currency, exchangeRate);
+    void sendQuoteEmail(q, "created");
     return true;
   };
 
@@ -97,7 +92,7 @@ function DashboardPage() {
 
   return (
     <AppLayout
-      title={`Hola, ${greetName} 👋`}
+      title={`Hola, ${greetName}`}
       subtitle="Este es el resumen de tu negocio en tiempo real."
       actions={
         <>

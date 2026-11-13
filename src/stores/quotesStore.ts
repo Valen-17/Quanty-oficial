@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { createEntityId, nowTs } from "@/domain/common";
+import { nowTs } from "@/domain/common";
 import {
   normalizeQuoteInputItems,
   quoteInputSchema as domainQuoteInputSchema,
@@ -22,8 +22,10 @@ import {
   safeCreateQuote,
   safeGetQuotes,
   safeSoftDeleteQuote,
-  safeUpdateQuote,
+  safeUpdateQuoteStatus,
+  type EditableQuoteStatus,
 } from "@/repositories/quotes.repository";
+import { UNIQUE_VIOLATION } from "@/repositories/shared";
 import { useInventoryStore } from "@/stores/inventoryStore";
 
 export const quoteStatusSchema = domainQuoteStatusSchema;
@@ -34,12 +36,7 @@ export const quoteInputSchema = domainQuoteInputSchema;
 export type QuoteInput = DomainQuoteInput;
 export type Quote = DomainQuote;
 
-export function calcTotals(
-  items: QuoteItem[],
-  laborWorkers = 0,
-  laborHours = 0,
-  laborRate = 0,
-) {
+export function calcTotals(items: QuoteItem[], laborWorkers = 0, laborHours = 0, laborRate = 0) {
   const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
   const laborEmployeeAmount = Math.round(laborWorkers * laborHours * laborRate);
   const total = subtotal + laborEmployeeAmount;
@@ -59,16 +56,14 @@ interface QuotesState {
   quotes: Quote[];
   counter: number;
   remoteQuotesError: string | null;
-  createQuote: (data: QuoteInput) => Quote;
   setStatus: (id: string, status: QuoteStatus) => void;
   approveQuote: (id: string) => { ok: boolean; error?: string; issues?: ApprovalIssue[] };
   getApprovalIssues: (id: string) => ApprovalIssue[];
   deleteQuote: (id: string) => void;
   clearRemoteQuotesError: () => void;
-  /** Sincroniza con Supabase y conserva cotizaciones solo locales (id no UUID). Recalcula `counter` con folios fusionados. */
   syncQuotesFromRemote: () => Promise<boolean>;
   createQuoteOnRemote: (data: QuoteInput) => Promise<Quote | null>;
-  updateQuoteOnRemote: (quote: Quote) => Promise<boolean>;
+  setQuoteStatusOnRemote: (id: string, status: EditableQuoteStatus) => Promise<boolean>;
   softDeleteQuoteOnRemote: (id: string) => Promise<boolean>;
   approveQuoteOnRemote: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
@@ -106,17 +101,28 @@ export const useQuotesStore = create<QuotesState>()(
           data.laborHours ?? 0,
           data.laborRate ?? 0,
         );
-        const counter = get().counter + 1;
-        const folio = `COT-${counter}`;
-        const res = await safeCreateQuote({
+        let counter = get().counter + 1;
+        let res = await safeCreateQuote({
           ...data,
           clientNameSnapshot: data.clientNameSnapshot ?? data.clientName,
           items: normalizedItems,
-          folio,
+          folio: `COT-${counter}`,
           status: "borrador",
           approvedAt: null,
           ...totals,
         });
+        for (let attempt = 0; attempt < 5 && !res.ok && res.code === UNIQUE_VIOLATION; attempt++) {
+          counter += 1;
+          res = await safeCreateQuote({
+            ...data,
+            clientNameSnapshot: data.clientNameSnapshot ?? data.clientName,
+            items: normalizedItems,
+            folio: `COT-${counter}`,
+            status: "borrador",
+            approvedAt: null,
+            ...totals,
+          });
+        }
         if (!res.ok) {
           set({ remoteQuotesError: res.error });
           return null;
@@ -128,14 +134,14 @@ export const useQuotesStore = create<QuotesState>()(
         }));
         return res.data;
       },
-      updateQuoteOnRemote: async (quote) => {
-        const res = await safeUpdateQuote(quote);
+      setQuoteStatusOnRemote: async (id, status) => {
+        const res = await safeUpdateQuoteStatus(id, status);
         if (!res.ok) {
           set({ remoteQuotesError: res.error });
           return false;
         }
         set((s) => ({
-          quotes: s.quotes.map((q) => (q.id === quote.id ? res.data : q)),
+          quotes: s.quotes.map((q) => (q.id === id ? res.data : q)),
           remoteQuotesError: null,
         }));
         return true;
@@ -164,33 +170,6 @@ export const useQuotesStore = create<QuotesState>()(
         }));
         void useInventoryStore.getState().syncProductsFromRemote();
         return { ok: true as const };
-      },
-      createQuote: (data) => {
-        const counter = get().counter + 1;
-        const normalizedItems = normalizeQuoteInputItems(data.items);
-        const totals = calcTotals(
-          normalizedItems,
-          data.laborWorkers ?? 0,
-          data.laborHours ?? 0,
-          data.laborRate ?? 0,
-        );
-        const quote: Quote = {
-          id: createEntityId("q"),
-          folio: `COT-${counter}`,
-          status: "borrador",
-          createdAt: nowTs(),
-          notes: data.notes ?? "",
-          laborWorkers: data.laborWorkers ?? 0,
-          laborHours: data.laborHours ?? 0,
-          laborRate: data.laborRate ?? 0,
-          ...data,
-          clientNameSnapshot: data.clientNameSnapshot ?? data.clientName,
-          clientName: data.clientNameSnapshot ?? data.clientName,
-          items: normalizedItems,
-          ...totals,
-        };
-        set((s) => ({ quotes: [quote, ...s.quotes], counter }));
-        return quote;
       },
       setStatus: (id, status) =>
         set((s) => ({
@@ -229,8 +208,8 @@ export const useQuotesStore = create<QuotesState>()(
         const issues = get().getApprovalIssues(id);
         if (issues.length > 0) return { ok: false, issues };
 
-        const { adjustStock } = useInventoryStore.getState();
-        for (const it of quote.items) adjustStock(it.productId, -it.quantity);
+        const { applyStockDelta } = useInventoryStore.getState();
+        for (const it of quote.items) applyStockDelta(it.productId, -it.quantity);
 
         set((s) => ({
           quotes: s.quotes.map((q) =>

@@ -13,7 +13,6 @@ interface Props {
   open: boolean;
   initial?: Expense | null;
   onClose: () => void;
-  /** Devuelve true si la operación remota/local tuvo éxito (el padre cierra el modal). */
   onSubmit: (data: ExpenseInput) => boolean | Promise<boolean>;
 }
 
@@ -25,36 +24,26 @@ function toDateInput(ts: number) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function ExpenseFormModal({ open, initial, onClose, onSubmit }: Props) {
+export function ExpenseFormModal(props: Props) {
+  if (!props.open) return null;
+  return <ExpenseFormModalContent key={props.initial?.id ?? "new"} {...props} />;
+}
+
+function ExpenseFormModalContent({ initial, onClose, onSubmit }: Props) {
   const remoteExpensesError = useExpensesStore((s) => s.remoteExpensesError);
-  const [concept, setConcept] = useState("");
-  const [amount, setAmount] = useState("");
-  const [type, setType] = useState<ExpenseType>("variable");
-  const [category, setCategory] = useState("");
-  const [date, setDate] = useState(toDateInput(Date.now()));
+  const [concept, setConcept] = useState(initial?.concept ?? "");
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
+  const [type, setType] = useState<ExpenseType>(initial?.type ?? "variable");
+  const [category, setCategory] = useState(initial?.category ?? "");
+  const [date, setDate] = useState(() => toDateInput(initial ? initial.date : Date.now()));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
-    if (initial) {
-      setConcept(initial.concept);
-      setAmount(String(initial.amount));
-      setType(initial.type);
-      setCategory(initial.category);
-      setDate(toDateInput(initial.date));
-    } else {
-      setConcept("");
-      setAmount("");
-      setType("variable");
-      setCategory("");
-      setDate(toDateInput(Date.now()));
-    }
-    setErrors({});
-    setSubmitting(false);
-  }, [open, initial]);
-
-  if (!open) return null;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

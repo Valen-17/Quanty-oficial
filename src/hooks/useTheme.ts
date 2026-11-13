@@ -1,10 +1,6 @@
 import { useEffect } from "react";
 import { useSettingsStore } from "@/stores/settingsStore";
 
-/**
- * Applies the selected theme to <html> by toggling the `dark` class.
- * Listens to system preference changes when theme === "system".
- */
 export function useTheme() {
   const theme = useSettingsStore((s) => s.preferences.theme);
 

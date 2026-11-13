@@ -15,8 +15,6 @@ import {
 import { fmtDate } from "@/lib/format";
 import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { cn } from "@/lib/utils";
-import { useClientsStore } from "@/stores/clientsStore";
-import { useSettingsStore } from "@/stores/settingsStore";
 import { sendQuoteEmail } from "@/lib/sendQuoteEmail";
 
 export const Route = createFileRoute("/cotizaciones")({
@@ -44,9 +42,6 @@ const filters: { id: Filter; label: string }[] = [
 
 function CotizacionesPage() {
   const fmtMoney = useFmtMoney();
-  const clients = useClientsStore((s) => s.clients);
-  const profile = useSettingsStore((s) => s.profile);
-  const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const quotes = useQuotesStore((s) => s.quotes);
   const createQuoteOnRemote = useQuotesStore((s) => s.createQuoteOnRemote);
   const remoteQuotesError = useQuotesStore((s) => s.remoteQuotesError);
@@ -79,8 +74,7 @@ function CotizacionesPage() {
     const quote = await createQuoteOnRemote(data);
     if (!quote) return false;
     setOpenQuote(quote);
-    const client = data.clientId ? clients.find((c) => c.id === data.clientId) : undefined;
-    void sendQuoteEmail(quote, client?.email ?? "", profile.businessName ?? "", profile.currency, exchangeRate);
+    void sendQuoteEmail(quote, "created");
     return true;
   };
 
@@ -89,7 +83,6 @@ function CotizacionesPage() {
     setModalOpen(true);
   };
 
-  // Mantener detalle sincronizado si el store cambia (al aprobar/cambiar estado)
   const liveOpenQuote = openQuote ? (quotes.find((q) => q.id === openQuote.id) ?? null) : null;
 
   return (
@@ -125,11 +118,7 @@ function CotizacionesPage() {
         <Stat label="Total" value={quotes.length.toString()} />
         <Stat label="Borradores" value={stats.byStatus.borrador.toString()} />
         <Stat label="Aprobadas" value={stats.byStatus.aprobada.toString()} accent="success" />
-        <Stat
-          label="Ingresos aprobados"
-          value={fmtMoney(stats.totalApproved)}
-          accent="primary"
-        />
+        <Stat label="Ingresos aprobados" value={fmtMoney(stats.totalApproved)} accent="primary" />
       </section>
 
       <div className="mb-4 flex flex-wrap gap-1.5 rounded-lg bg-muted p-1">

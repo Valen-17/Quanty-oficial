@@ -10,7 +10,12 @@ const STATUS_LABEL: Record<string, string> = {
   rechazada: "Rechazada",
 };
 
-export function downloadQuotePdf(quote: Quote, currency = "COP", clientEmail = "", exchangeRate = 1) {
+export function downloadQuotePdf(
+  quote: Quote,
+  currency = "COP",
+  clientEmail = "",
+  exchangeRate = 1,
+) {
   const fmt = makeFmtCurrency(currency);
   const cvt = (amount: number) => fmt.format(amount / exchangeRate);
   const doc = new jsPDF({ unit: "pt", format: "letter" });

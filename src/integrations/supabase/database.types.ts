@@ -1,9 +1,3 @@
-/**
- * Tipos de la base de datos Supabase (public).
- * Mantener alineado con las migraciones en supabase/migrations/.
- * Regenerar con: npx supabase gen types typescript --project-id <id> > src/integrations/supabase/database.types.ts
- * (y fusionar manualmente si hace falta).
- */
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
@@ -242,7 +236,22 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "quote_line_items_quote_id_fkey";
+            columns: ["quote_id"];
+            isOneToOne: false;
+            referencedRelation: "quotes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quote_line_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       inventory_movements: {
         Row: {

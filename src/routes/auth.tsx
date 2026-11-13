@@ -7,8 +7,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    redirect: typeof search.redirect === "string" ? search.redirect : "/",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { redirect: string; mode: "login" | "signup" } => ({
+    redirect: safeRedirectPath(search.redirect),
     mode: search.mode === "signup" ? "signup" : "login",
   }),
   head: () => ({
@@ -22,6 +24,13 @@ export const Route = createFileRoute("/auth")({
   }),
   component: AuthPage,
 });
+
+function safeRedirectPath(value: unknown): string {
+  if (typeof value !== "string") return "/";
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return "/";
+  if (value.startsWith("/auth")) return "/";
+  return value;
+}
 
 const loginSchema = z.object({
   email: z.string().trim().email({ message: "Correo inválido" }).max(255),
@@ -127,7 +136,6 @@ function AuthPage() {
 
   return (
     <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-background p-4">
-      {/* Decorative gradient */}
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div className="absolute -left-32 top-1/4 h-96 w-96 rounded-full bg-primary/30 blur-3xl" />
         <div className="absolute -right-32 bottom-1/4 h-96 w-96 rounded-full bg-primary-glow/30 blur-3xl" />

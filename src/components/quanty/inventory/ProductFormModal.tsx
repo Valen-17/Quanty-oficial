@@ -40,8 +40,8 @@ function toForm(p: Product): FormState {
   };
 }
 
-const MAX_IMAGE_BYTES = 1_500_000; // 1.5MB raw before base64 (~2MB encoded)
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_IMAGE_BYTES = 1_500_000;
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 async function compressImage(file: File, maxDim = 800, quality = 0.82): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -68,32 +68,26 @@ async function compressImage(file: File, maxDim = 800, quality = 0.82): Promise<
   return canvas.toDataURL("image/jpeg", quality);
 }
 
-export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
+export function ProductFormModal(props: Props) {
+  if (!props.open) return null;
+  return <ProductFormModalContent key={props.initial?.id ?? "new"} {...props} />;
+}
+
+function ProductFormModalContent({ initial, onClose, onSubmit }: Props) {
   const remoteProductsError = useInventoryStore((s) => s.remoteProductsError);
-  const [form, setForm] = useState<FormState>(empty);
+  const [form, setForm] = useState<FormState>(() => (initial ? toForm(initial) : empty));
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) {
-      setForm(initial ? toForm(initial) : empty);
-      setErrors({});
-      setSubmitting(false);
-    }
-  }, [open, initial]);
-
-  useEffect(() => {
-    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
+  }, [onClose]);
 
   const set = <K extends keyof FormState>(k: K, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -209,7 +203,7 @@ export function ProductFormModal({ open, initial, onClose, onSubmit }: Props) {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/jpeg,image/png,image/webp"
                   className="hidden"
                   onChange={(e) => handleFile(e.target.files?.[0])}
                 />
