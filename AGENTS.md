@@ -18,6 +18,7 @@ Never use npm or yarn.
 | Build (dev)  | `bun run build:dev` |
 | Preview      | `bun run preview`   |
 | Lint         | `bun run lint`      |
+| Typecheck    | `bun run typecheck` |
 | Format       | `bun run format`    |
 
 Never invent scripts. Check `package.json` first.
@@ -27,11 +28,11 @@ Never invent scripts. Check `package.json` first.
 - **Framework:** TanStack Start (SSR) + TanStack Router (file-based routing)
 - **React:** 19, TypeScript 6 strict, `moduleResolution: Bundler`
 - **Styling:** Tailwind CSS v4 — config lives in `src/styles.css`, no `tailwind.config.*` file
-- **UI components:** Shadcn/ui (new-york, slate). Add via `bunx shadcn add <name>`. Primitives in `src/components/ui/`
+- **UI components:** Shadcn/ui (new-york, slate) configured in `components.json`. No primitives are installed; add one with `bunx shadcn add <name>` (creates `src/components/ui/`) only when a screen uses it
 - **Icons:** lucide-react
 - **State:** Zustand v5 with `localStorage` persist, scoped per `user_id`
-- **Server state:** TanStack Query v5
-- **Forms:** React Hook Form + Zod v4
+- **Server state:** Zustand stores + repositories in `src/repositories/` (TanStack Query v5 is installed but not used yet)
+- **Forms:** local component state + Zod v4 schemas from `src/domain/entities.ts`
 - **Backend:** Supabase (auth + DB + RLS)
 - **Deploy:** Cloudflare Workers via `wrangler.jsonc`
 
@@ -59,7 +60,7 @@ Never invent scripts. Check `package.json` first.
 src/
   routes/           # File-based pages (TanStack Router)
   components/
-    ui/             # Shadcn primitives — never edit manually
+    ui/             # Shadcn primitives (only after `shadcn add`) — never edit manually
     quanty/         # App-specific components
   stores/           # Zustand slices (one per domain entity)
   repositories/     # Supabase data access (one file per entity)
@@ -88,6 +89,7 @@ Supabase is source of truth. Zustand + localStorage is an offline-first cache sc
 - **Legacy local IDs:** prefixed strings like `c-173…`, `ev-173…`, `e-173…` (created offline or pre-auth)
 - **Merge strategy:** `[...remote, ...localOnlyLegacy]` — legacy rows are never dropped during sync
 - **Shared util:** `src/lib/merge-remote-with-local-legacy.ts`
+- **Repository helpers:** `src/repositories/shared.ts` (UUID detection, error formatting, session user id). Reuse them instead of copying per repository
 - **Bootstrap:** `rehydrateThenBootstrapRemoteModules` runs all domain syncs in parallel on app start
 - No bulk auto-migration of legacy IDs — this is intentional
 
