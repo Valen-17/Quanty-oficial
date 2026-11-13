@@ -92,7 +92,7 @@ Principio: ningún cambio debe requerir una acción externa (aplicar migraciones
 ### Requiere decisión o acción tuya
 
 - Rotar `RESEND_API_KEY` en Resend: ya está en el historial de git.
-- Dejar de versionar `.env` (`git rm --cached .env`) y hacer commit.
+- Hecho: `.env` dejó de versionarse (sigue en el historial, por eso hay que rotar la clave).
 - Aplicar la migración nueva y desplegar la función `send-quote-email`.
 - Hecho: se borraron los 46 componentes de `src/components/ui` sin uso y los 36 paquetes que solo ellos usaban (las dependencias pasaron de 57 a 21). Siguen sin uso `@tanstack/react-query` y `date-fns`, y los archivos `PageStub`, `use-mobile`, `client.server.ts`, `auth-middleware.ts` e `integrations/supabase/types.ts`.
 - Activar protección de contraseñas filtradas en Supabase Auth.
