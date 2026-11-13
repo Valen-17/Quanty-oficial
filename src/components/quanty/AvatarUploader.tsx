@@ -3,14 +3,16 @@ import { Camera, Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { initialsFrom } from "@/lib/names";
 import { cn } from "@/lib/utils";
 
-function initialsFrom(name?: string | null, email?: string | null) {
-  const source = (name && name.trim()) || (email ? email.split("@")[0] : "");
-  if (!source) return "U";
-  const parts = source.split(/[\s._-]+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || source[0].toUpperCase();
-}
+const AVATAR_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+const AVATAR_TYPES = Object.keys(AVATAR_EXTENSIONS);
 
 interface AvatarUploaderProps {
   size?: number;
@@ -31,8 +33,8 @@ export function AvatarUploader({ size = 96, showHint = true }: AvatarUploaderPro
     if (!user) return;
     setError(null);
 
-    if (!file.type.startsWith("image/")) {
-      setError("El archivo debe ser una imagen.");
+    if (!AVATAR_TYPES.includes(file.type)) {
+      setError("Formato no soportado (JPG, PNG o WebP).");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -42,7 +44,7 @@ export function AvatarUploader({ size = 96, showHint = true }: AvatarUploaderPro
 
     setBusy(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const ext = AVATAR_EXTENSIONS[file.type] ?? "jpg";
       const path = `${user.id}/avatar-${Date.now()}.${ext}`;
 
       const { error: upErr } = await supabase.storage
@@ -139,7 +141,7 @@ export function AvatarUploader({ size = 96, showHint = true }: AvatarUploaderPro
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];

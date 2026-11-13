@@ -11,11 +11,21 @@ import { useMemo } from "react";
 import { useExpensesStore } from "@/stores/expensesStore";
 import { useQuotesStore } from "@/stores/quotesStore";
 import { selectFinanceSeries } from "@/stores/selectors";
+import { useFmtMoney } from "@/hooks/useFmtCurrency";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 export function RevenueChart() {
   const quotes = useQuotesStore((s) => s.quotes);
   const expenses = useExpensesStore((s) => s.expenses);
   const data = useMemo(() => selectFinanceSeries(quotes, expenses), [quotes, expenses]);
+  const fmtMoney = useFmtMoney();
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const formatAxis = (value: number) => {
+    const converted = value / exchangeRate;
+    if (Math.abs(converted) >= 1_000_000) return `${Math.round(converted / 100_000) / 10}M`;
+    if (Math.abs(converted) >= 1_000) return `${Math.round(converted / 100) / 10}k`;
+    return String(Math.round(converted));
+  };
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] sm:p-6">
@@ -59,7 +69,7 @@ export function RevenueChart() {
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => `$${v / 1000}k`}
+              tickFormatter={(v: number) => formatAxis(v)}
             />
             <Tooltip
               contentStyle={{
@@ -69,16 +79,7 @@ export function RevenueChart() {
                 fontSize: "12px",
                 boxShadow: "0 10px 30px -10px oklch(0.48 0.22 295 / 0.25)",
               }}
-              formatter={(value: any) =>
-                [
-                  new Intl.NumberFormat("es-CO", {
-                    style: "currency",
-                    currency: "COP",
-                    maximumFractionDigits: 0,
-                  }).format(Number(value)),
-                  "",
-                ] as [string, string]
-              }
+              formatter={(value) => [fmtMoney(Number(value) || 0), ""] as [string, string]}
             />
             <Area
               type="monotone"

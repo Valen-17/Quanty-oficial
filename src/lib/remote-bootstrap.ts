@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { mergeCloudProfileIntoSettings } from "@/lib/profile-settings-sync";
+import { getSessionUserId } from "@/repositories/shared";
 import { rehydrateAllScopedPersistStores } from "@/lib/rehydrate-persist-stores";
 import { useClientsStore } from "@/stores/clientsStore";
 import { useExpensesStore } from "@/stores/expensesStore";
@@ -10,27 +12,19 @@ import {
 } from "@/stores/remoteBootstrapStore";
 import { useAgendaStore } from "@/stores/agendaStore";
 import { useQuotesStore } from "@/stores/quotesStore";
-import { useSettingsStore } from "@/stores/settingsStore";
 
 async function syncProfileIntoSettingsStore(userId: string): Promise<void> {
   const { data } = await supabase
     .from("profiles")
-    .select("full_name, business_name, phone, has_employees, employee_count")
+    .select("full_name, business_name, phone, has_employees, employee_count, currency, language")
     .eq("id", userId)
     .maybeSingle();
   if (!data) return;
-  const current = useSettingsStore.getState().profile;
-  useSettingsStore.getState().updateProfile({
-    ...current,
-    fullName: data.full_name ?? current.fullName,
-    businessName: data.business_name ?? current.businessName,
-    phone: data.phone ?? current.phone,
-    hasEmployees: data.has_employees ?? current.hasEmployees,
-    employeeCount: data.employee_count ?? current.employeeCount,
-  });
+  mergeCloudProfileIntoSettings(data);
 }
 
 function clearModuleRemoteErrors() {
+  useClientsStore.getState().clearRemoteClientsError();
   useInventoryStore.getState().clearRemoteProductsError();
   useQuotesStore.getState().clearRemoteQuotesError();
   useExpensesStore.getState().clearRemoteExpensesError();
@@ -56,16 +50,11 @@ function readModuleErrorAfterFailedSync(key: RemoteBootstrapModule): string {
 
 async function assertStillSameUser(expectedUserId: string, signal: AbortSignal): Promise<boolean> {
   if (signal.aborted) return false;
-  const { data, error } = await supabase.auth.getUser();
+  const userId = await getSessionUserId();
   if (signal.aborted) return false;
-  if (error) return false;
-  return data.user?.id === expectedUserId;
+  return userId === expectedUserId;
 }
 
-/**
- * Rehidrata persist con scope actual y sincroniza lectura remota de módulos híbridos.
- * No muta formularios; solo `sync*FromRemote`. Idempotente respecto a errores por módulo.
- */
 export async function rehydrateThenBootstrapRemoteModules(
   expectedUserId: string,
   signal: AbortSignal,

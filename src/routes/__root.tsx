@@ -2,6 +2,8 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ProfileProvider } from "@/hooks/useProfile";
+import { useExchangeRateSync } from "@/hooks/useExchangeRateSync";
 import { useTheme } from "@/hooks/useTheme";
 
 function NotFoundComponent() {
@@ -79,11 +81,13 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  // Apply theme class to <html> based on user preference
   useTheme();
+  useExchangeRateSync();
   return (
     <AuthProvider>
-      <Outlet />
+      <ProfileProvider>
+        <Outlet />
+      </ProfileProvider>
     </AuthProvider>
   );
 }

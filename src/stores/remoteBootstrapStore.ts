@@ -5,14 +5,11 @@ export type RemoteBootstrapModule = "clients" | "products" | "quotes" | "expense
 export type RemoteBootstrapModuleErrors = Partial<Record<RemoteBootstrapModule, string>>;
 
 interface RemoteBootstrapState {
-  /** Se incrementa en cada arranque de bootstrap; evita que un run cancelado pise el estado de uno nuevo. */
   bootstrapGeneration: number;
   isHydratingRemoteData: boolean;
   lastRemoteSyncAt: number | null;
   remoteBootstrapCompleted: boolean;
-  /** Errores del último intento de bootstrap por módulo (no persistido). */
   moduleSyncErrors: RemoteBootstrapModuleErrors;
-  /** Usuario para el que terminó el último bootstrap exitoso o con errores parciales. */
   lastBootstrapUserId: string | null;
   startRemoteBootstrap: (userId: string) => number;
   completeRemoteBootstrap: (

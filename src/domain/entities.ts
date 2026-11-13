@@ -73,7 +73,6 @@ export type QuoteItem = z.infer<typeof quoteItemSchema>;
 export type Quote = z.infer<typeof quoteSchema>;
 export type QuoteInput = z.infer<typeof quoteInputSchema>;
 
-/** Normaliza ítems y snapshots como en el store local (UI / persistencia). */
 export function normalizeQuoteInputItems(items: QuoteInput["items"]): QuoteItem[] {
   return items.map((item) => {
     const productNameSnapshot = item.productNameSnapshot ?? item.name;
@@ -107,9 +106,7 @@ export const agendaEventSchema = z.object({
   id: idSchema,
   title: z.string().trim().min(2).max(80),
   clientName: z.string().trim().max(80).or(z.literal("")),
-  /** Opcional: vínculo remoto a cliente (UUID). Eventos legacy no lo tienen. */
   clientId: z.string().trim().min(1).optional(),
-  /** Opcional: vínculo remoto a cotización (UUID). */
   quoteId: z.string().trim().min(1).optional(),
   date: timestampSchema,
   time: z.string().regex(/^\d{2}:\d{2}$/),
@@ -163,6 +160,7 @@ export const agendaPersistedSchema = z.object({
 export const settingsPersistedSchema = z.object({
   profile: profileSchema,
   preferences: preferencesSchema,
+  exchangeRate: z.number().positive().default(1),
 });
 
 export type InventoryPersisted = z.infer<typeof inventoryPersistedSchema>;

@@ -1,13 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { createEntityId } from "@/domain/common";
 import { inventoryPersistedSchema, type InventoryPersisted } from "@/domain/entities";
-import {
-  getAvailability,
-  type Product,
-  type ProductInput,
-  type Availability,
-} from "@/components/quanty/inventory/types";
+import type { Product, ProductInput } from "@/components/quanty/inventory/types";
 import { buildPersistOptions } from "@/lib/persist-helpers";
 import { createScopedJsonStorage } from "@/lib/scoped-persist-storage";
 import { mergeRemoteWithLocalLegacy } from "@/lib/merge-remote-with-local-legacy";
@@ -17,18 +11,24 @@ import {
   safeGetProducts,
   safeSoftDeleteProduct,
   safeUpdateProduct,
+  safeUpdateProductUnits,
 } from "@/repositories/products.repository";
+
+const MAX_UNITS = 999_999;
+
+const stockSyncQueue = new Map<string, Promise<void>>();
+
+function clampUnits(units: number): number {
+  return Math.max(0, Math.min(MAX_UNITS, units));
+}
 
 interface InventoryState {
   products: Product[];
-  /** Último error de operaciones remotas de productos (no persistido). */
   remoteProductsError: string | null;
-  addProduct: (data: ProductInput) => void;
   updateProduct: (id: string, data: ProductInput) => void;
   deleteProduct: (id: string) => void;
-  adjustStock: (id: string, delta: number) => void;
+  applyStockDelta: (id: string, delta: number) => void;
   clearRemoteProductsError: () => void;
-  /** Sincroniza con Supabase y conserva productos solo locales (id no UUID). */
   syncProductsFromRemote: () => Promise<boolean>;
   createProductOnRemote: (data: ProductInput) => Promise<Product | null>;
   updateProductOnRemote: (id: string, data: ProductInput) => Promise<boolean>;
@@ -87,18 +87,6 @@ export const useInventoryStore = create<InventoryState>()(
         }));
         return true;
       },
-      addProduct: (data) =>
-        set((s) => ({
-          products: [
-            {
-              id: createEntityId("p"),
-              ...data,
-              description: data.description ?? "",
-              imageUrl: data.imageUrl ?? "",
-            },
-            ...s.products,
-          ],
-        })),
       updateProduct: (id, data) =>
         set((s) => ({
           products: s.products.map((p) =>
@@ -113,12 +101,30 @@ export const useInventoryStore = create<InventoryState>()(
           ),
         })),
       deleteProduct: (id) => set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
-      adjustStock: (id, delta) =>
+      applyStockDelta: (id, delta) => {
+        const current = get().products.find((p) => p.id === id);
+        if (!current) return;
+        const nextUnits = clampUnits(current.units + delta);
+        if (nextUnits === current.units) return;
         set((s) => ({
-          products: s.products.map((p) =>
-            p.id === id ? { ...p, units: Math.max(0, Math.min(999_999, p.units + delta)) } : p,
-          ),
-        })),
+          products: s.products.map((p) => (p.id === id ? { ...p, units: nextUnits } : p)),
+        }));
+        if (!isRemoteProductId(id)) return;
+        const previous = stockSyncQueue.get(id) ?? Promise.resolve();
+        const task = previous.then(async () => {
+          const latest = get().products.find((p) => p.id === id);
+          if (!latest) return;
+          const res = await safeUpdateProductUnits(id, latest.units);
+          if (!res.ok) {
+            await get().syncProductsFromRemote();
+            set({ remoteProductsError: res.error });
+          }
+        });
+        stockSyncQueue.set(id, task);
+        void task.finally(() => {
+          if (stockSyncQueue.get(id) === task) stockSyncQueue.delete(id);
+        });
+      },
     }),
     {
       ...buildPersistOptions<InventoryState, InventoryPersisted>({
@@ -141,20 +147,6 @@ export const useInventoryStore = create<InventoryState>()(
     },
   ),
 );
-
-// Selectors derivados
-export const selectLowStock = (s: InventoryState) =>
-  s.products
-    .map((p) => ({ ...p, availability: getAvailability(p) }))
-    .filter((p) => p.availability !== "disponible")
-    .sort((a, b) => {
-      // Agotados primero, luego pocas
-      const order: Record<Availability, number> = { agotado: 0, pocas: 1, disponible: 2 };
-      if (order[a.availability] !== order[b.availability]) {
-        return order[a.availability] - order[b.availability];
-      }
-      return a.units / a.threshold - b.units / b.threshold;
-    });
 
 export const selectInventoryValue = (s: InventoryState) =>
   s.products.reduce((sum, p) => sum + p.price * p.units, 0);

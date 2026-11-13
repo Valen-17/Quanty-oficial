@@ -12,40 +12,29 @@ interface Props {
   open: boolean;
   initial?: Client | null;
   onClose: () => void;
-  /** Devuelve true si la operación remota/local tuvo éxito (el padre cierra el modal). */
   onSubmit: (data: ClientInput) => boolean | Promise<boolean>;
 }
 
-export function ClientFormModal({ open, initial, onClose, onSubmit }: Props) {
+export function ClientFormModal(props: Props) {
+  if (!props.open) return null;
+  return <ClientFormModalContent key={props.initial?.id ?? "new"} {...props} />;
+}
+
+function ClientFormModalContent({ initial, onClose, onSubmit }: Props) {
   const remoteClientsError = useClientsStore((s) => s.remoteClientsError);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [company, setCompany] = useState("");
-  const [notes, setNotes] = useState("");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [email, setEmail] = useState(initial?.email ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [company, setCompany] = useState(initial?.company ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setName(initial?.name ?? "");
-      setEmail(initial?.email ?? "");
-      setPhone(initial?.phone ?? "");
-      setCompany(initial?.company ?? "");
-      setNotes(initial?.notes ?? "");
-      setErrors({});
-      setSubmitting(false);
-    }
-  }, [open, initial]);
-
-  useEffect(() => {
-    if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

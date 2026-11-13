@@ -1,6 +1,5 @@
 import type { Expense } from "@/stores/expensesStore";
 import type { Quote, QuoteStatus } from "@/stores/quotesStore";
-import type { Product } from "@/components/quanty/inventory/types";
 
 export function selectApprovedIncome(quotes: Quote[]) {
   return quotes.filter((q) => q.status === "aprobada").reduce((sum, q) => sum + q.total, 0);
@@ -35,10 +34,6 @@ export function selectFinancialSummary(quotes: Quote[], expenses: Expense[]) {
   const profit = income - expenseTotals.total;
   const margin = income > 0 ? (profit / income) * 100 : 0;
   return { income, ...expenseTotals, profit, margin };
-}
-
-export function selectLowStockCount(products: Product[]) {
-  return products.filter((p) => p.units <= p.threshold).length;
 }
 
 function monthKey(ts: number) {

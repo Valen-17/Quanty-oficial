@@ -1,53 +1,26 @@
 import { productInputSchema, type Product, type ProductInput } from "@/domain/entities";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  formatSupabaseError,
+  isRemoteEntityId,
+  mapUnknownError,
+  requireAuthUserId,
+  type RepoDeleteResult,
+  type RepoResult,
+} from "@/repositories/shared";
 import type { Tables } from "@/integrations/supabase/database.types";
 
 export type ProductRow = Tables<"products">;
 
-export type ProductsRepoResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; data: null; error: string };
+export type ProductsRepoResult<T> = RepoResult<T>;
 
-export type ProductsDeleteResult = { ok: true } | { ok: false; error: string };
+export type ProductsDeleteResult = RepoDeleteResult;
 
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function isRemoteProductId(id: string): boolean {
-  return UUID_V4.test(id.trim());
-}
+export const isRemoteProductId = isRemoteEntityId;
 
 function parsePriceFromRow(value: string): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : NaN;
-}
-
-function formatSupabaseError(
-  prefix: string,
-  err: { message?: string; code?: string; details?: string } | null,
-): string {
-  if (!err) return `${prefix}: respuesta sin detalle.`;
-  const parts = [err.message, err.code, err.details].filter(Boolean);
-  return parts.length ? `${prefix}: ${parts.join(" — ")}` : `${prefix}: error desconocido.`;
-}
-
-function mapUnknownError(prefix: string, error: unknown): string {
-  if (error && typeof error === "object" && "message" in error) {
-    const m = (error as { message?: unknown }).message;
-    if (typeof m === "string" && m.length > 0) return `${prefix}: ${m}`;
-  }
-  return `${prefix}: error de red o respuesta inválida.`;
-}
-
-async function requireAuthUserId(): Promise<ProductsRepoResult<string>> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("Auth", error) };
-  }
-  const id = data.user?.id;
-  if (!id) {
-    return { ok: false, data: null, error: "Debes iniciar sesión para usar productos remotos." };
-  }
-  return { ok: true, data: id };
 }
 
 export function productRowToDomain(row: ProductRow): Product {
@@ -79,12 +52,13 @@ function productRowToDomainSafe(row: ProductRow): ProductsRepoResult<Product> {
 }
 
 export async function getProducts(): Promise<ProductsRepoResult<Product[]>> {
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("productos remotos");
   if (!auth.ok) return auth;
 
   const { data, error } = await supabase
     .from("products")
     .select("*")
+    .eq("user_id", auth.data)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -115,7 +89,7 @@ export async function createProduct(input: ProductInput): Promise<ProductsRepoRe
     return { ok: false, data: null, error: `Datos inválidos: ${msg}` };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("productos remotos");
   if (!auth.ok) return auth;
 
   const v = parsed.data;
@@ -165,7 +139,7 @@ export async function updateProduct(
     return { ok: false, data: null, error: `Datos inválidos: ${msg}` };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("productos remotos");
   if (!auth.ok) return auth;
 
   const v = parsed.data;
@@ -197,12 +171,53 @@ export async function updateProduct(
   return productRowToDomainSafe(data as ProductRow);
 }
 
+export async function updateProductUnits(
+  id: string,
+  units: number,
+): Promise<ProductsRepoResult<Product>> {
+  if (!isRemoteProductId(id)) {
+    return {
+      ok: false,
+      data: null,
+      error: "Este producto solo existe en local (sin UUID remoto).",
+    };
+  }
+  if (!Number.isInteger(units) || units < 0 || units > 999_999) {
+    return { ok: false, data: null, error: "Cantidad de stock inválida." };
+  }
+
+  const auth = await requireAuthUserId("productos remotos");
+  if (!auth.ok) return auth;
+
+  const { data, error } = await supabase
+    .from("products")
+    .update({ units })
+    .eq("id", id)
+    .eq("user_id", auth.data)
+    .is("deleted_at", null)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    return {
+      ok: false,
+      data: null,
+      error: formatSupabaseError("No se pudo actualizar el stock", error),
+    };
+  }
+  if (!data) {
+    return { ok: false, data: null, error: "Producto no encontrado o sin permiso (RLS)." };
+  }
+
+  return productRowToDomainSafe(data as ProductRow);
+}
+
 export async function softDeleteProduct(id: string): Promise<ProductsDeleteResult> {
   if (!isRemoteProductId(id)) {
     return { ok: false, error: "Este producto solo existe en local (sin UUID remoto)." };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("productos remotos");
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const now = new Date().toISOString();
@@ -248,6 +263,17 @@ export async function safeUpdateProduct(
     return await updateProduct(id, input);
   } catch (e) {
     return { ok: false, data: null, error: mapUnknownError("updateProduct", e) };
+  }
+}
+
+export async function safeUpdateProductUnits(
+  id: string,
+  units: number,
+): Promise<ProductsRepoResult<Product>> {
+  try {
+    return await updateProductUnits(id, units);
+  } catch (e) {
+    return { ok: false, data: null, error: mapUnknownError("updateProductUnits", e) };
   }
 }
 

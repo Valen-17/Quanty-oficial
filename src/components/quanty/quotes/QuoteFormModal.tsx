@@ -19,11 +19,15 @@ import { useFmtMoney } from "@/hooks/useFmtCurrency";
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Devuelve true si la cotización se creó correctamente (el modal puede cerrarse). */
   onCreated: (data: QuoteInput) => boolean | Promise<boolean>;
 }
 
-export function QuoteFormModal({ open, onClose, onCreated }: Props) {
+export function QuoteFormModal(props: Props) {
+  if (!props.open) return null;
+  return <QuoteFormModalContent {...props} />;
+}
+
+function QuoteFormModalContent({ onClose, onCreated }: Props) {
   const fmtMoney = useFmtMoney();
   const products = useInventoryStore((s) => s.products);
   const createClientOnRemote = useClientsStore((s) => s.createClientOnRemote);
@@ -43,7 +47,9 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [clientName, setClientName] = useState("");
   const [notes, setNotes] = useState("");
-  const [laborWorkers, setLaborWorkers] = useState("0");
+  const [laborWorkers, setLaborWorkers] = useState(() =>
+    profile.hasEmployees ? String(availableWorkers) : "0",
+  );
   const [laborHours, setLaborHours] = useState("0");
   const [laborRate, setLaborRate] = useState("0");
   const [items, setItems] = useState<QuoteItem[]>([]);
@@ -53,26 +59,10 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setClientId(undefined);
-      setClientName("");
-      setNotes("");
-      setLaborWorkers(profile.hasEmployees ? String(availableWorkers) : "0");
-      setLaborHours("0");
-      setLaborRate("0");
-      setItems([]);
-      setQuery("");
-      setErrors({});
-      setSubmitting(false);
-    }
-  }, [open, profile.hasEmployees, profile.employeeCount, availableWorkers]);
-
-  useEffect(() => {
-    if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [onClose]);
 
   const filteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -84,12 +74,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
 
   const totals = useMemo(
     () =>
-      calcTotals(
-        items,
-        Number(laborWorkers) || 0,
-        Number(laborHours) || 0,
-        Number(laborRate) || 0,
-      ),
+      calcTotals(items, Number(laborWorkers) || 0, Number(laborHours) || 0, Number(laborRate) || 0),
     [items, laborWorkers, laborHours, laborRate],
   );
 
@@ -99,7 +84,6 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
     setItems((prev) => {
       const found = prev.find((i) => i.productId === productId);
       if (found) {
-        // No exceder stock disponible
         if (found.quantity >= p.units) return prev;
         return prev.map((i) =>
           i.productId === productId ? { ...i, quantity: i.quantity + 1 } : i,
@@ -126,10 +110,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
   const removeItem = (productId: string) =>
     setItems((prev) => prev.filter((i) => i.productId !== productId));
 
-  // Stock disponible por producto en el contexto del item ya agregado
   const stockOf = (productId: string) => products.find((p) => p.id === productId)?.units ?? 0;
-
-  if (!open) return null;
 
   return (
     <div
@@ -209,7 +190,6 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
             </p>
           )}
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden md:grid-cols-5">
-            {/* Catálogo */}
             <div className="border-b border-border md:col-span-2 md:border-b-0 md:border-r">
               <div className="p-4">
                 <label className="mb-1.5 block text-xs font-semibold text-foreground">
@@ -271,7 +251,6 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
               </div>
             </div>
 
-            {/* Items y datos */}
             <div className="flex min-h-0 flex-col overflow-visible md:col-span-3">
               <div className="space-y-3 overflow-visible border-b border-border p-4">
                 <Field label="Cliente" error={errors.clientName} required>
@@ -312,7 +291,9 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                           max={availableWorkers}
                           value={laborWorkers}
                           onChange={(e) => {
-                            setLaborWorkers(String(Math.min(Number(e.target.value) || 0, availableWorkers)));
+                            setLaborWorkers(
+                              String(Math.min(Number(e.target.value) || 0, availableWorkers)),
+                            );
                           }}
                           className={cn(inputCls(!!errors.laborWorkers), "text-right")}
                         />
@@ -337,7 +318,7 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                       </div>
                       <div>
                         <label className="mb-1 block text-[10px] font-semibold text-muted-foreground">
-                          Tarifa/hora
+                          Tarifa/hora (COP)
                         </label>
                         <input
                           type="number"
@@ -350,8 +331,8 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
                     </div>
                     <p className="text-right text-xs text-muted-foreground">
                       M.O. empleados:{" "}
-                        <span className="font-mono font-semibold text-foreground">
-                          {fmtMoney(totals.laborEmployeeAmount)}
+                      <span className="font-mono font-semibold text-foreground">
+                        {fmtMoney(totals.laborEmployeeAmount)}
                       </span>
                     </p>
                   </div>
@@ -448,7 +429,6 @@ export function QuoteFormModal({ open, onClose, onCreated }: Props) {
             </div>
           </div>
 
-          {/* Resumen + acciones */}
           <div className="border-t border-border bg-muted/30 px-5 py-4">
             <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
               <Total label="Subtotal" value={fmtMoney(totals.subtotal)} />

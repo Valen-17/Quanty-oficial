@@ -39,13 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session?.user?.id, loading]);
 
   useEffect(() => {
-    // 1) Set listener FIRST to avoid race conditions
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
     });
 
-    // 2) Then read existing session
     supabase.auth.getSession().then(({ data: { session: existing } }) => {
       setSession(existing);
       setUser(existing?.user ?? null);

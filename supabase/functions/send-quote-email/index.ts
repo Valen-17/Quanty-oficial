@@ -7,7 +7,61 @@ const CORS = {
 
 type EventType = "created" | "enviada" | "aprobada" | "rechazada";
 
-const EVENT_META: Record<EventType, { accentColor: string; subject: (folio: string, biz: string) => string; headline: string; body: (folio: string, biz: string, name: string) => string }> = {
+type EmailItem = { name: string; quantity: number; unitPrice: number };
+
+const MAX_ITEMS = 200;
+const EMAIL_RE = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function toNumber(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function sanitizeDisplayName(value: unknown): string {
+  return String(value ?? "")
+    .replace(/[<>"\r\n,;]/g, "")
+    .trim()
+    .slice(0, 80);
+}
+
+function jsonResponse(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
+}
+
+async function isAuthenticated(req: Request): Promise<boolean> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (!supabaseUrl || !anonKey || !authHeader.startsWith("Bearer ")) return false;
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { Authorization: authHeader, apikey: anonKey },
+  });
+  if (!res.ok) return false;
+  const user = await res.json();
+  return typeof user?.id === "string" && user.id.length > 0;
+}
+
+const EVENT_META: Record<
+  EventType,
+  {
+    accentColor: string;
+    subject: (folio: string, biz: string) => string;
+    headline: string;
+    body: (folio: string, biz: string, name: string) => string;
+  }
+> = {
   created: {
     accentColor: "#5e35b1",
     subject: (folio, biz) => `Cotización ${folio}${biz ? ` · ${biz}` : ""}`,
@@ -43,48 +97,71 @@ serve(async (req) => {
     return new Response("ok", { headers: CORS });
   }
 
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
   try {
-    const { quote, clientEmail, businessName, currency, exchangeRate: rate, eventType: rawEvent } = await req.json();
+    if (!(await isAuthenticated(req))) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const {
+      quote,
+      clientEmail,
+      businessName,
+      currency,
+      exchangeRate: rate,
+      eventType: rawEvent,
+    } = await req.json();
     const exchangeRate: number = typeof rate === "number" && rate > 0 ? rate : 1;
-    const eventType: EventType = (["created", "enviada", "aprobada", "rechazada"] as EventType[]).includes(rawEvent)
+    const eventType: EventType = (
+      ["created", "enviada", "aprobada", "rechazada"] as EventType[]
+    ).includes(rawEvent)
       ? rawEvent
       : "created";
 
-    if (!clientEmail || !quote) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-        headers: { ...CORS, "Content-Type": "application/json" },
-      });
+    if (!quote || typeof clientEmail !== "string" || !EMAIL_RE.test(clientEmail.trim())) {
+      return jsonResponse({ error: "Missing or invalid fields" }, 400);
     }
+    const items: EmailItem[] = Array.isArray(quote.items) ? quote.items.slice(0, MAX_ITEMS) : [];
+    const folio = escapeHtml(quote.folio);
+    const clientName = escapeHtml(quote.clientName);
+    const notes = escapeHtml(quote.notes);
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) {
-      return new Response(JSON.stringify({ error: "RESEND_API_KEY not configured" }), {
-        status: 500,
-        headers: { ...CORS, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "RESEND_API_KEY not configured" }, 500);
     }
 
-    const locale = { COP: "es-CO", USD: "en-US", MXN: "es-MX", EUR: "de-DE" }[currency as string] ?? "es-CO";
+    const locale =
+      { COP: "es-CO", USD: "en-US", MXN: "es-MX", EUR: "de-DE" }[currency as string] ?? "es-CO";
     const cur = ["COP", "USD", "MXN", "EUR"].includes(currency) ? currency : "COP";
-    const fmt = new Intl.NumberFormat(locale, { style: "currency", currency: cur, maximumFractionDigits: 0 });
-    const cvt = (amount: number) => fmt.format(amount / exchangeRate);
+    const fmt = new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: cur,
+      maximumFractionDigits: 0,
+    });
+    const cvt = (amount: unknown) => fmt.format(toNumber(amount) / exchangeRate);
 
     const meta = EVENT_META[eventType];
-    const biz: string = businessName ?? "";
-    const from = biz ? `${biz} via Quanty <onboarding@resend.dev>` : "Quanty <onboarding@resend.dev>";
-    const to = Deno.env.get("RESEND_TEST_TO") ?? clientEmail;
+    const bizName = sanitizeDisplayName(businessName);
+    const biz = escapeHtml(bizName);
+    const from = bizName
+      ? `${bizName} via Quanty <onboarding@resend.dev>`
+      : "Quanty <onboarding@resend.dev>";
+    const to = Deno.env.get("RESEND_TEST_TO") ?? clientEmail.trim();
 
-    const itemRows = (quote.items ?? [])
+    const itemRows = items
       .map(
-        (it: { name: string; quantity: number; unitPrice: number }) =>
-          `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${it.name}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">${it.quantity}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-family:monospace">${cvt(it.unitPrice)}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;font-weight:bold">${cvt(it.unitPrice * it.quantity)}</td></tr>`,
+        (it) =>
+          `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${escapeHtml(it.name)}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">${toNumber(it.quantity)}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-family:monospace">${cvt(it.unitPrice)}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-family:monospace;font-weight:bold">${cvt(toNumber(it.unitPrice) * toNumber(it.quantity))}</td></tr>`,
       )
       .join("");
 
     const laborRow =
-      (quote.laborEmployeeAmount ?? 0) > 0
-        ? `<tr><td colspan="3" style="padding:6px 8px;color:#666">M.O. empleados (${quote.laborWorkers ?? 0} × ${quote.laborHours ?? 0}h)</td><td style="padding:6px 8px;text-align:right;font-family:monospace">${cvt(quote.laborEmployeeAmount)}</td></tr>`
+      toNumber(quote.laborEmployeeAmount) > 0
+        ? `<tr><td colspan="3" style="padding:6px 8px;color:#666">M.O. empleados (${toNumber(quote.laborWorkers)} × ${toNumber(quote.laborHours)}h)</td><td style="padding:6px 8px;text-align:right;font-family:monospace">${cvt(quote.laborEmployeeAmount)}</td></tr>`
         : "";
 
     const html = `
@@ -96,8 +173,8 @@ serve(async (req) => {
     <div style="background:${meta.accentColor};height:6px"></div>
     <div style="padding:32px 32px 0">
       <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:.1em;color:${meta.accentColor};text-transform:uppercase">${meta.headline}</p>
-      <h1 style="margin:4px 0 4px;font-size:28px;font-weight:800;color:#141414">${quote.folio}</h1>
-      <p style="font-size:14px;color:#444;margin-top:12px">${meta.body(quote.folio, biz, quote.clientName)}</p>
+      <h1 style="margin:4px 0 4px;font-size:28px;font-weight:800;color:#141414">${folio}</h1>
+      <p style="font-size:14px;color:#444;margin-top:12px">${meta.body(folio, biz, clientName)}</p>
     </div>
     <div style="padding:24px 32px">
       <table style="width:100%;border-collapse:collapse;font-size:14px">
@@ -119,7 +196,7 @@ serve(async (req) => {
           </tr>
         </tfoot>
       </table>
-      ${quote.notes ? `<div style="margin-top:16px;background:#f8f8fa;border-radius:8px;padding:12px 16px"><p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999">Notas</p><p style="margin:0;font-size:13px;color:#444">${quote.notes}</p></div>` : ""}
+      ${notes ? `<div style="margin-top:16px;background:#f8f8fa;border-radius:8px;padding:12px 16px"><p style="margin:0 0 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999">Notas</p><p style="margin:0;font-size:13px;color:#444">${notes}</p></div>` : ""}
     </div>
     <div style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;text-align:center">
       <p style="margin:0;font-size:11px;color:#aaa">Generado por <strong style="color:#5e35b1">Quanty</strong> · Insumos &amp; Cotizaciones</p>
@@ -137,28 +214,21 @@ serve(async (req) => {
       body: JSON.stringify({
         from,
         to: [to],
-        subject: meta.subject(quote.folio, biz),
+        subject: meta.subject(String(quote.folio ?? "").slice(0, 40), bizName),
         html,
       }),
     });
 
     if (!res.ok) {
       const body = await res.text();
-      return new Response(JSON.stringify({ error: body }), {
-        status: 502,
-        headers: { ...CORS, "Content-Type": "application/json" },
-      });
+      console.error("resend error", res.status, body);
+      return jsonResponse({ error: "Email provider error" }, 502);
     }
 
     const data = await res.json();
-    return new Response(JSON.stringify({ id: data.id }), {
-      status: 200,
-      headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ id: data.id }, 200);
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    console.error("send-quote-email error", err);
+    return jsonResponse({ error: "Internal error" }, 500);
   }
 });

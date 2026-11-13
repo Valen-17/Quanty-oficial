@@ -29,14 +29,12 @@ export type AgendaEvent = DomainAgendaEvent;
 
 interface AgendaState {
   events: AgendaEvent[];
-  /** Último error de operaciones remotas (no persistido). */
   remoteAgendaError: string | null;
   createEvent: (data: EventInput) => AgendaEvent;
   updateEvent: (id: string, data: EventInput) => void;
   deleteEvent: (id: string) => void;
   setStatus: (id: string, status: EventStatus) => void;
   clearRemoteAgendaError: () => void;
-  /** Fusiona eventos remotos con entradas solo locales (id no UUID). */
   syncAgendaFromRemote: () => Promise<boolean>;
   createAgendaEventOnRemote: (data: EventInput) => Promise<AgendaEvent | null>;
   updateAgendaEventOnRemote: (event: AgendaEvent) => Promise<boolean>;

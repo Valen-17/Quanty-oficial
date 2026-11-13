@@ -208,7 +208,7 @@ function BalancePage() {
           <div className="mt-4 space-y-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Ingresos</span>
-                   <span className="font-mono font-semibold text-success">+{fmtMoney(income)}</span>
+              <span className="font-mono font-semibold text-success">+{fmtMoney(income)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Egresos</span>

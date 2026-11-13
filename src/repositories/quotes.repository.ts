@@ -10,6 +10,15 @@ import {
   type QuoteItem,
 } from "@/domain/entities";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  failure,
+  formatSupabaseError,
+  isRemoteEntityId,
+  mapUnknownError,
+  requireAuthUserId,
+  type RepoDeleteResult,
+  type RepoResult,
+} from "@/repositories/shared";
 import type { Tables } from "@/integrations/supabase/database.types";
 import { isRemoteClientId } from "@/repositories/clients.repository";
 import { isRemoteProductId } from "@/repositories/products.repository";
@@ -17,14 +26,10 @@ import { isRemoteProductId } from "@/repositories/products.repository";
 export type QuoteRow = Tables<"quotes">;
 export type QuoteLineItemRow = Tables<"quote_line_items">;
 
-export type QuotesRepoResult<T> = { ok: true; data: T } | { ok: false; data: null; error: string };
-export type QuotesDeleteResult = { ok: true } | { ok: false; error: string };
+export type QuotesRepoResult<T> = RepoResult<T>;
+export type QuotesDeleteResult = RepoDeleteResult;
 
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function isRemoteQuoteId(id: string): boolean {
-  return UUID_V4.test(id.trim());
-}
+export const isRemoteQuoteId = isRemoteEntityId;
 
 const createRemoteQuoteParamsSchema = quoteInputSchema.extend({
   folio: z.string().min(1),
@@ -37,38 +42,9 @@ const createRemoteQuoteParamsSchema = quoteInputSchema.extend({
 
 export type CreateRemoteQuoteParams = z.infer<typeof createRemoteQuoteParamsSchema>;
 
-function formatSupabaseError(
-  prefix: string,
-  err: { message?: string; code?: string; details?: string } | null,
-): string {
-  if (!err) return `${prefix}: respuesta sin detalle.`;
-  const parts = [err.message, err.code, err.details].filter(Boolean);
-  return parts.length ? `${prefix}: ${parts.join(" — ")}` : `${prefix}: error desconocido.`;
-}
-
-function mapUnknownError(prefix: string, error: unknown): string {
-  if (error && typeof error === "object" && "message" in error) {
-    const m = (error as { message?: unknown }).message;
-    if (typeof m === "string" && m.length > 0) return `${prefix}: ${m}`;
-  }
-  return `${prefix}: error de red o respuesta inválida.`;
-}
-
 function parseNumeric(value: string): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : NaN;
-}
-
-async function requireAuthUserId(): Promise<QuotesRepoResult<string>> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("Auth", error) };
-  }
-  const id = data.user?.id;
-  if (!id) {
-    return { ok: false, data: null, error: "Debes iniciar sesión para usar cotizaciones remotas." };
-  }
-  return { ok: true, data: id };
 }
 
 function lineRowToQuoteItem(row: QuoteLineItemRow): QuotesRepoResult<QuoteItem> {
@@ -114,10 +90,7 @@ function joinedRowToQuote(
   const laborEmployeeAmount = parseNumeric(String(row.labor_employee_amount ?? "0"));
   const total = parseNumeric(row.total);
   const createdAt = Date.parse(row.created_at);
-  if (
-    !Number.isFinite(subtotal) ||
-    subtotal < 0
-  ) {
+  if (!Number.isFinite(subtotal) || subtotal < 0) {
     return { ok: false, data: null, error: `Montos inválidos en cotización ${row.id}.` };
   }
   if (!Number.isFinite(total) || total < 0) {
@@ -186,12 +159,13 @@ function quoteItemsToLineInserts(
 }
 
 export async function getQuotes(): Promise<QuotesRepoResult<Quote[]>> {
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("cotizaciones remotas");
   if (!auth.ok) return auth;
 
   const { data, error } = await supabase
     .from("quotes")
     .select("*, quote_line_items(*)")
+    .eq("user_id", auth.data)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -229,7 +203,7 @@ export async function createQuote(
     return { ok: false, data: null, error: "approvedAt es obligatorio cuando status es aprobada." };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("cotizaciones remotas");
   if (!auth.ok) return auth;
 
   const items = normalizeQuoteInputItems(p.items);
@@ -263,11 +237,7 @@ export async function createQuote(
     .single();
 
   if (headerError || !header) {
-    return {
-      ok: false,
-      data: null,
-      error: formatSupabaseError("No se pudo crear la cotización", headerError),
-    };
+    return failure("No se pudo crear la cotización", headerError);
   }
 
   const quoteId = (header as QuoteRow).id;
@@ -303,99 +273,59 @@ export async function createQuote(
   return joinedRowToQuote(rejoined as QuoteRow & { quote_line_items?: QuoteLineItemRow[] | null });
 }
 
-export async function updateQuote(quote: Quote): Promise<QuotesRepoResult<Quote>> {
-  if (!isRemoteQuoteId(quote.id)) {
+const editableStatusSchema = z.enum(["borrador", "enviada", "rechazada"]);
+
+export type EditableQuoteStatus = z.infer<typeof editableStatusSchema>;
+
+export async function updateQuoteStatus(
+  id: string,
+  status: EditableQuoteStatus,
+): Promise<QuotesRepoResult<Quote>> {
+  if (!isRemoteQuoteId(id)) {
     return {
       ok: false,
       data: null,
       error: "Esta cotización solo existe en local (sin UUID remoto).",
     };
   }
-
-  const parsed = quoteSchema.safeParse(quote);
-  if (!parsed.success) {
-    return { ok: false, data: null, error: parsed.error.issues.map((i) => i.message).join("; ") };
-  }
-  const q = parsed.data;
-  if (q.status === "aprobada" && (q.approvedAt == null || !Number.isFinite(q.approvedAt))) {
-    return { ok: false, data: null, error: "approvedAt es obligatorio cuando status es aprobada." };
+  const parsedStatus = editableStatusSchema.safeParse(status);
+  if (!parsedStatus.success) {
+    return { ok: false, data: null, error: "Estado de cotización no permitido." };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("cotizaciones remotas");
   if (!auth.ok) return auth;
 
-  const items = normalizeQuoteInputItems(q.items);
-  const clientId = q.clientId && isRemoteClientId(q.clientId) ? q.clientId : null;
-  const approvedIso =
-    q.status === "aprobada" && q.approvedAt != null && Number.isFinite(q.approvedAt)
-      ? new Date(q.approvedAt).toISOString()
-      : null;
-
-  const { error: delErr } = await supabase.from("quote_line_items").delete().eq("quote_id", q.id);
-  if (delErr) {
-    return {
-      ok: false,
-      data: null,
-      error: formatSupabaseError("No se pudieron actualizar las líneas (delete)", delErr),
-    };
-  }
-
-  const { error: upErr } = await supabase
+  const { data, error } = await supabase
     .from("quotes")
-    .update({
-      client_id: clientId,
-      folio: q.folio.trim(),
-      status: q.status,
-      client_name: q.clientName.trim(),
-      client_name_snapshot: q.clientNameSnapshot.trim(),
-      notes: q.notes ?? "",
-      subtotal: String(q.subtotal),
-      total: String(q.total),
-      labor_workers: q.laborWorkers ?? 0,
-      labor_hours: String(q.laborHours ?? 0),
-      labor_rate: String(q.laborRate ?? 0),
-      labor_employee_amount: String(q.laborEmployeeAmount ?? 0),
-      approved_at: approvedIso,
-    })
-    .eq("id", q.id);
+    .update({ status: parsedStatus.data, approved_at: null })
+    .eq("id", id)
+    .eq("user_id", auth.data)
+    .neq("status", "aprobada")
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
 
-  if (upErr) {
+  if (error) {
     return {
       ok: false,
       data: null,
-      error: formatSupabaseError("No se pudo actualizar la cotización", upErr),
+      error: formatSupabaseError("No se pudo actualizar el estado de la cotización", error),
     };
   }
-
-  const linePayload = quoteItemsToLineInserts(q.id, items);
-  const { error: insErr } = await supabase.from("quote_line_items").insert(linePayload);
-  if (insErr) {
+  if (!data) {
     return {
       ok: false,
       data: null,
-      error: formatSupabaseError("No se pudieron insertar las líneas actualizadas", insErr),
+      error: "Cotización no encontrada, ya aprobada o sin permiso.",
     };
   }
 
-  const { data: rejoined, error: readError } = await supabase
-    .from("quotes")
-    .select("*, quote_line_items(*)")
-    .eq("id", q.id)
-    .single();
-
-  if (readError || !rejoined) {
-    return {
-      ok: false,
-      data: null,
-      error: formatSupabaseError("Cotización actualizada pero no se pudo releer", readError),
-    };
-  }
-
-  return joinedRowToQuote(rejoined as QuoteRow & { quote_line_items?: QuoteLineItemRow[] | null });
+  return fetchQuoteJoinedById(id);
 }
 
 async function fetchQuoteJoinedById(quoteId: string): Promise<QuotesRepoResult<Quote>> {
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("cotizaciones remotas");
   if (!auth.ok) return auth;
 
   const { data, error } = await supabase
@@ -427,7 +357,7 @@ export async function approveQuoteRemote(id: string): Promise<QuotesRepoResult<Q
     };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("cotizaciones remotas");
   if (!auth.ok) return auth;
 
   const { error: rpcError } = await supabase.rpc("approve_quote", { p_quote_id: id });
@@ -455,7 +385,7 @@ export async function softDeleteQuote(id: string): Promise<QuotesDeleteResult> {
     return { ok: false, error: "Esta cotización solo existe en local (sin UUID remoto)." };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("cotizaciones remotas");
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const now = new Date().toISOString();
@@ -495,11 +425,14 @@ export async function safeCreateQuote(
   }
 }
 
-export async function safeUpdateQuote(quote: Quote): Promise<QuotesRepoResult<Quote>> {
+export async function safeUpdateQuoteStatus(
+  id: string,
+  status: EditableQuoteStatus,
+): Promise<QuotesRepoResult<Quote>> {
   try {
-    return await updateQuote(quote);
+    return await updateQuoteStatus(id, status);
   } catch (e) {
-    return { ok: false, data: null, error: mapUnknownError("updateQuote", e) };
+    return { ok: false, data: null, error: mapUnknownError("updateQuoteStatus", e) };
   }
 }
 

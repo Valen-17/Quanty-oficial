@@ -6,21 +6,23 @@ import {
   type ExpenseInput,
 } from "@/domain/entities";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  formatSupabaseError,
+  isRemoteEntityId,
+  mapUnknownError,
+  requireAuthUserId,
+  type RepoDeleteResult,
+  type RepoResult,
+} from "@/repositories/shared";
 import type { Tables } from "@/integrations/supabase/database.types";
 
 export type ExpenseRow = Tables<"expenses">;
 
-export type ExpensesRepoResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; data: null; error: string };
+export type ExpensesRepoResult<T> = RepoResult<T>;
 
-export type ExpensesDeleteResult = { ok: true } | { ok: false; error: string };
+export type ExpensesDeleteResult = RepoDeleteResult;
 
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function isRemoteExpenseId(id: string): boolean {
-  return UUID_V4.test(id.trim());
-}
+export const isRemoteExpenseId = isRemoteEntityId;
 
 function parseTimestampMs(iso: string): number {
   const ms = Date.parse(iso);
@@ -32,36 +34,6 @@ function parseAmountFromRow(value: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-function formatSupabaseError(
-  prefix: string,
-  err: { message?: string; code?: string; details?: string } | null,
-): string {
-  if (!err) return `${prefix}: respuesta sin detalle.`;
-  const parts = [err.message, err.code, err.details].filter(Boolean);
-  return parts.length ? `${prefix}: ${parts.join(" — ")}` : `${prefix}: error desconocido.`;
-}
-
-function mapUnknownError(prefix: string, error: unknown): string {
-  if (error && typeof error === "object" && "message" in error) {
-    const m = (error as { message?: unknown }).message;
-    if (typeof m === "string" && m.length > 0) return `${prefix}: ${m}`;
-  }
-  return `${prefix}: error de red o respuesta inválida.`;
-}
-
-async function requireAuthUserId(): Promise<ExpensesRepoResult<string>> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) {
-    return { ok: false, data: null, error: formatSupabaseError("Auth", error) };
-  }
-  const id = data.user?.id;
-  if (!id) {
-    return { ok: false, data: null, error: "Debes iniciar sesión para usar gastos remotos." };
-  }
-  return { ok: true, data: id };
-}
-
-/** Mapea una fila SQL a dominio; falla si los datos no pasan el esquema canónico. */
 export function expenseRowToDomain(row: ExpenseRow): Expense {
   const amount = parseAmountFromRow(row.amount);
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -117,12 +89,13 @@ function expenseDateIsoFromMs(ms: number): string {
 }
 
 export async function getExpenses(): Promise<ExpensesRepoResult<Expense[]>> {
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("gastos remotos");
   if (!auth.ok) return auth;
 
   const { data, error } = await supabase
     .from("expenses")
     .select("*")
+    .eq("user_id", auth.data)
     .is("deleted_at", null)
     .order("expense_date", { ascending: false });
 
@@ -153,7 +126,7 @@ export async function createExpense(input: ExpenseInput): Promise<ExpensesRepoRe
     return { ok: false, data: null, error: `Datos inválidos: ${msg}` };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("gastos remotos");
   if (!auth.ok) return auth;
 
   const v = parsed.data;
@@ -198,7 +171,7 @@ export async function updateExpense(
     return { ok: false, data: null, error: `Datos inválidos: ${msg}` };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("gastos remotos");
   if (!auth.ok) return auth;
 
   const v = parsed.data;
@@ -235,7 +208,7 @@ export async function softDeleteExpense(id: string): Promise<ExpensesDeleteResul
     return { ok: false, error: "Este gasto solo existe en local (sin UUID remoto)." };
   }
 
-  const auth = await requireAuthUserId();
+  const auth = await requireAuthUserId("gastos remotos");
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const now = new Date().toISOString();

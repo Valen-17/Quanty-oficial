@@ -1,10 +1,5 @@
 import { createJSONStorage, type StateStorage } from "zustand/middleware";
 
-/**
- * UID de Supabase (o null si no hay sesión). Define el sufijo de clave en localStorage.
- * Cada cuenta tiene su propio snapshot; evita ver inventario/clientes/etc. de otra sesión
- * en el mismo navegador.
- */
 let scopedUserId: string | null = null;
 
 export function setScopedPersistenceUserId(userId: string | null): void {
@@ -41,9 +36,6 @@ const underlying: StateStorage = {
   },
 };
 
-/**
- * JSON storage de Zustand con claves por usuario (`setScopedPersistenceUserId` + rehydrate).
- */
 export function createScopedJsonStorage() {
   return createJSONStorage(() => underlying);
 }

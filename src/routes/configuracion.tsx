@@ -16,9 +16,9 @@ import { AppLayout } from "@/components/quanty/AppLayout";
 import { profileSchema, useSettingsStore, type Profile, type Theme } from "@/stores/settingsStore";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { nameFromEmail, useProfile } from "@/hooks/useProfile";
+import { useProfile } from "@/hooks/useProfile";
+import { nameFromEmail } from "@/lib/names";
 import { AvatarUploader } from "@/components/quanty/AvatarUploader";
-import { fetchCopRate } from "@/lib/exchangeRate";
 
 export const Route = createFileRoute("/configuracion")({
   head: () => ({
@@ -38,7 +38,6 @@ function ConfigPage() {
   const preferences = useSettingsStore((s) => s.preferences);
   const updateLocalProfile = useSettingsStore((s) => s.updateProfile);
   const updatePreferences = useSettingsStore((s) => s.updatePreferences);
-  const setExchangeRate = useSettingsStore((s) => s.setExchangeRate);
   const resetAll = useSettingsStore((s) => s.resetAll);
 
   const { user } = useAuth();
@@ -68,10 +67,6 @@ function ConfigPage() {
     }));
   }, [cloudProfile, user, profileLoading]);
 
-  useEffect(() => {
-    fetchCopRate(profile.currency).then(setExchangeRate);
-  }, [profile.currency, setExchangeRate]);
-
   const handleSave = async () => {
     const parsed = profileSchema.safeParse(form);
     if (!parsed.success) {
@@ -82,15 +77,15 @@ function ConfigPage() {
     }
     setErrors({});
     setSaving(true);
-    // Persiste preferencias locales (moneda, idioma)
     updateLocalProfile(parsed.data);
-    // Persiste perfil en Supabase
     const { error } = await updateCloudProfile({
       full_name: parsed.data.fullName,
       business_name: parsed.data.businessName ?? "",
       phone: parsed.data.phone ?? "",
       has_employees: parsed.data.hasEmployees,
       employee_count: parsed.data.hasEmployees ? parsed.data.employeeCount : 0,
+      currency: parsed.data.currency,
+      language: parsed.data.language,
     });
     setSaving(false);
     if (error) {
@@ -255,7 +250,7 @@ function ConfigPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
-              {savedAt && <span className="mr-auto text-xs text-success">✓ Cambios guardados</span>}
+              {savedAt && <span className="mr-auto text-xs text-success">Cambios guardados</span>}
               <button
                 onClick={handleSave}
                 disabled={saving}
@@ -374,7 +369,7 @@ function ConfigPage() {
 
       <div className="mt-8 flex items-center justify-center gap-2 text-xs text-muted-foreground">
         <Settings className="h-3.5 w-3.5" />
-        Quanty v1.0 · Datos guardados localmente en tu dispositivo
+        Quanty v1.0 · Datos sincronizados con tu cuenta
       </div>
     </AppLayout>
   );
