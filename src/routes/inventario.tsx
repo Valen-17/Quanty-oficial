@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Plus, Search, Package, Pencil, Trash2, Minus, Plus as PlusIcon } from "lucide-react";
+import {
+  Download,
+  Plus,
+  Search,
+  Package,
+  Pencil,
+  Trash2,
+  Minus,
+  Plus as PlusIcon,
+} from "lucide-react";
 import { AppLayout } from "@/components/quanty/AppLayout";
 import { ProductFormModal } from "@/components/quanty/inventory/ProductFormModal";
 import { ProductImage } from "@/components/quanty/inventory/ProductImage";
@@ -12,7 +21,10 @@ import {
   type Product,
   type ProductInput,
 } from "@/components/quanty/inventory/types";
+import { SortableHeader } from "@/components/quanty/table/SortableHeader";
+import { TablePagination } from "@/components/quanty/table/TablePagination";
 import { useFmtMoney } from "@/hooks/useFmtCurrency";
+import { downloadCsv, nextSort, paginate, sortRows, toCsv, type SortState } from "@/lib/table";
 import { cn } from "@/lib/utils";
 import { isRemoteProductId } from "@/repositories/products.repository";
 import { useInventoryStore } from "@/stores/inventoryStore";
@@ -32,6 +44,18 @@ export const Route = createFileRoute("/inventario")({
 
 type Filter = "todos" | Availability;
 
+type SortKey = "name" | "description" | "price" | "units" | "status";
+
+const availabilityOrder: Record<Availability, number> = { agotado: 0, pocas: 1, disponible: 2 };
+
+// Valor de cada producto usado para ordenar por la columna elegida.
+function sortValue(product: Product, key: SortKey): string | number {
+  if (key === "price") return product.price;
+  if (key === "units") return product.units;
+  if (key === "status") return availabilityOrder[getAvailability(product)];
+  return product[key];
+}
+
 const filters: { id: Filter; label: string }[] = [
   { id: "todos", label: "Todos" },
   { id: "disponible", label: "Disponible" },
@@ -39,6 +63,7 @@ const filters: { id: Filter; label: string }[] = [
   { id: "agotado", label: "Agotado" },
 ];
 
+// Página de inventario con búsqueda, filtros, orden, paginación y CSV.
 function InventarioPage() {
   const fmtMoney = useFmtMoney();
   const products = useInventoryStore((s) => s.products);
@@ -55,6 +80,9 @@ function InventarioPage() {
   const [filter, setFilter] = useState<Filter>("todos");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [sort, setSort] = useState<SortState<SortKey> | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -65,6 +93,40 @@ function InventarioPage() {
       return matchesQ && matchesF;
     });
   }, [products, query, filter]);
+
+  const sorted = useMemo(() => sortRows(filtered, sort, sortValue), [filtered, sort]);
+  const pageData = paginate(sorted, page, pageSize);
+
+  // Cada cambio de búsqueda, filtro u orden vuelve a la primera página.
+  const changeQuery = (value: string) => {
+    setQuery(value.slice(0, 80));
+    setPage(1);
+  };
+  const changeFilter = (value: Filter) => {
+    setFilter(value);
+    setPage(1);
+  };
+  const handleSort = (key: SortKey) => {
+    setSort((current) => nextSort(current, key));
+    setPage(1);
+  };
+
+  // Exporta lo que se ve filtrado y ordenado, sin importar la página.
+  const exportCsv = () => {
+    const rows = sorted.map((p) => [
+      p.name,
+      p.description,
+      p.price,
+      p.units,
+      p.threshold,
+      availabilityLabel[getAvailability(p)],
+    ]);
+    const csv = toCsv(
+      ["Producto", "Descripción", "Precio (COP)", "Unidades", "Umbral", "Estado"],
+      rows,
+    );
+    downloadCsv(`inventario-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  };
 
   const counts = useMemo(() => {
     const acc: Record<Availability, number> = { agotado: 0, pocas: 0, disponible: 0 };
@@ -151,28 +213,38 @@ function InventarioPage() {
           <input
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value.slice(0, 80))}
+            onChange={(e) => changeQuery(e.target.value)}
             maxLength={80}
             placeholder="Buscar por nombre o descripción"
             className="w-full rounded-lg border border-input bg-card py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
           />
         </div>
 
-        <div className="flex flex-wrap gap-1.5 rounded-lg bg-muted p-1">
-          {filters.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
-                filter === f.id
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1.5 rounded-lg bg-muted p-1">
+            {filters.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => changeFilter(f.id)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
+                  filter === f.id
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={sorted.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" /> Exportar CSV
+          </button>
         </div>
       </div>
 
@@ -181,11 +253,28 @@ function InventarioPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="px-4 py-3 sm:px-5">Producto</th>
-                <th className="px-4 py-3 sm:px-5">Descripción</th>
-                <th className="px-4 py-3 text-right sm:px-5">Precio</th>
-                <th className="px-4 py-3 text-center sm:px-5">Stock</th>
-                <th className="px-4 py-3 sm:px-5">Estado</th>
+                <SortableHeader label="Producto" sortKey="name" sort={sort} onSort={handleSort} />
+                <SortableHeader
+                  label="Descripción"
+                  sortKey="description"
+                  sort={sort}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Precio"
+                  sortKey="price"
+                  sort={sort}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortableHeader
+                  label="Stock"
+                  sortKey="units"
+                  sort={sort}
+                  onSort={handleSort}
+                  align="center"
+                />
+                <SortableHeader label="Estado" sortKey="status" sort={sort} onSort={handleSort} />
                 <th className="px-4 py-3 text-right sm:px-5">Acciones</th>
               </tr>
             </thead>
@@ -197,7 +286,7 @@ function InventarioPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((p) => {
+                pageData.items.map((p) => {
                   const av = getAvailability(p);
                   return (
                     <tr
@@ -274,10 +363,21 @@ function InventarioPage() {
           </table>
         </div>
         {filtered.length > 0 && (
-          <div className="border-t border-border bg-muted/30 px-5 py-2.5 text-xs text-muted-foreground">
-            Mostrando <span className="font-semibold text-foreground">{filtered.length}</span> de{" "}
-            <span className="font-semibold text-foreground">{products.length}</span> productos
-          </div>
+          <TablePagination
+            page={pageData.page}
+            totalPages={pageData.totalPages}
+            pageSize={pageSize}
+            start={pageData.start}
+            shown={pageData.items.length}
+            totalFiltered={sorted.length}
+            totalAll={products.length}
+            itemLabel="productos"
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         )}
       </div>
 
