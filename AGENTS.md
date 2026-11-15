@@ -49,7 +49,7 @@ Never invent scripts. Check `package.json` first.
 ## Code Style
 
 - Prettier: printWidth 100, semicolons, double quotes, trailingComma all
-- No comments of any kind (inline, block, JSDoc, TODO, decorative, section separators)
+- Comments in Spanish, short and simple: one line above a module, an exported function or a non-obvious block. No commented-out code, TODOs, JSDoc blocks or decorative separators. Do not comment what the code already says
 - No emojis
 - `@typescript-eslint/no-unused-vars` is disabled — lint will not catch unused variables
 - Match existing patterns; no large refactors unless explicitly asked

@@ -7,11 +7,13 @@ export type QuoteEmailEvent = "created" | "enviada" | "aprobada" | "rechazada";
 
 export type QuoteEmailResult = { ok: true } | { ok: false; error: string };
 
+// Busca el correo del cliente de la cotización.
 export function findClientEmail(clientId?: string): string {
   if (!clientId) return "";
   return useClientsStore.getState().clients.find((c) => c.id === clientId)?.email ?? "";
 }
 
+// Solo envía los campos que necesita el correo.
 function toEmailQuote(quote: Quote) {
   return {
     folio: quote.folio,
@@ -30,6 +32,7 @@ function toEmailQuote(quote: Quote) {
   };
 }
 
+// Envía el correo de la cotización con la función de Supabase.
 export async function sendQuoteEmail(
   quote: Quote,
   eventType: QuoteEmailEvent,

@@ -40,6 +40,7 @@ const filters: { id: Filter; label: string }[] = [
   { id: "rechazada", label: "Rechazadas" },
 ];
 
+// Página de cotizaciones con filtros por estado.
 function CotizacionesPage() {
   const fmtMoney = useFmtMoney();
   const quotes = useQuotesStore((s) => s.quotes);

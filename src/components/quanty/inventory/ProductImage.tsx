@@ -20,6 +20,7 @@ const iconMap = {
   lg: "h-6 w-6",
 } as const;
 
+// Imagen del producto o un ícono si no tiene.
 export function ProductImage({ src, alt, size = "md", className }: Props) {
   return (
     <div

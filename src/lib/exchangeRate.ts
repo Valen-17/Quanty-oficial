@@ -1,3 +1,4 @@
+// Consulta cuánto vale 1 COP en la moneda elegida; devuelve null si falla.
 export async function fetchCopRate(targetCurrency: string): Promise<number | null> {
   if (targetCurrency === "COP") return 1;
   try {

@@ -1,3 +1,5 @@
+// Estado de la agenda: caché local y sincronización con Supabase.
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createEntityId, nowTs } from "@/domain/common";
@@ -47,6 +49,7 @@ export const useAgendaStore = create<AgendaState>()(
       events: [],
       remoteAgendaError: null,
       clearRemoteAgendaError: () => set({ remoteAgendaError: null }),
+      // Trae los compromisos remotos y conserva los que solo existen en local.
       syncAgendaFromRemote: async () => {
         const res = await safeGetAgendaEvents();
         if (!res.ok) {

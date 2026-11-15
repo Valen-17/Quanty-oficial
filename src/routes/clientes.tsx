@@ -33,6 +33,7 @@ export const Route = createFileRoute("/clientes")({
   component: ClientesPage,
 });
 
+// Página del directorio de clientes.
 function ClientesPage() {
   const fmtMoney = useFmtMoney();
   const clients = useClientsStore((s) => s.clients);

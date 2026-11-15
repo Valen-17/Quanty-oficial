@@ -1,3 +1,5 @@
+// Acceso a la tabla de clientes en Supabase.
+
 import { clientInputSchema, type Client, type ClientInput } from "@/domain/entities";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -23,6 +25,7 @@ function parseTimestamp(iso: string): number {
   return Number.isFinite(ms) ? ms : 0;
 }
 
+// Pasa una fila de la base de datos al modelo de la app.
 export function clientRowToDomain(row: ClientRow): Client {
   return {
     id: row.id,
@@ -35,6 +38,7 @@ export function clientRowToDomain(row: ClientRow): Client {
   };
 }
 
+// Lista los clientes activos del usuario.
 export async function getClients(): Promise<ClientsRepoResult<Client[]>> {
   const auth = await requireAuthUserId("clientes remotos");
   if (!auth.ok) return auth;
@@ -58,6 +62,7 @@ export async function getClients(): Promise<ClientsRepoResult<Client[]>> {
   return { ok: true, data: rows.map(clientRowToDomain) };
 }
 
+// Valida y crea un cliente.
 export async function createClient(input: ClientInput): Promise<ClientsRepoResult<Client>> {
   const parsed = clientInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -96,6 +101,7 @@ export async function createClient(input: ClientInput): Promise<ClientsRepoResul
   return { ok: true, data: clientRowToDomain(data as ClientRow) };
 }
 
+// Valida y actualiza un cliente existente.
 export async function updateClient(
   id: string,
   input: ClientInput,
@@ -141,6 +147,7 @@ export async function updateClient(
   return { ok: true, data: clientRowToDomain(data as ClientRow) };
 }
 
+// Archiva el cliente marcando la fecha de borrado.
 export async function softDeleteClient(id: string): Promise<ClientsDeleteResult> {
   if (!isRemoteClientId(id)) {
     return { ok: false, error: "Este cliente solo existe en local (sin UUID remoto)." };
@@ -168,6 +175,7 @@ export async function softDeleteClient(id: string): Promise<ClientsDeleteResult>
   return { ok: true };
 }
 
+// Versiones seguras: capturan errores inesperados y devuelven un resultado.
 export async function safeGetClients(): Promise<ClientsRepoResult<Client[]>> {
   try {
     return await getClients();

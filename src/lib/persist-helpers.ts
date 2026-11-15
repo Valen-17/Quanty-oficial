@@ -12,11 +12,13 @@ interface BuildPersistOptionsArgs<TStore, TPersisted extends object> {
   migrations?: PersistMigrationMap<TPersisted>;
 }
 
+// Valida con Zod o usa el valor por defecto.
 function parseOrFallback<T>(schema: ZodType<T>, value: unknown, fallback: () => T): T {
   const parsed = schema.safeParse(value);
   return parsed.success ? parsed.data : fallback();
 }
 
+// Opciones de persistencia de Zustand con validación y migraciones.
 export function buildPersistOptions<TStore, TPersisted extends object>({
   name,
   version,

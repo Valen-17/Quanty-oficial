@@ -19,6 +19,7 @@ const accentMap: Record<NonNullable<KpiCardProps["accent"]>, string> = {
   muted: "bg-muted text-muted-foreground",
 };
 
+// Tarjeta de indicador del dashboard.
 export function KpiCard({
   label,
   value,

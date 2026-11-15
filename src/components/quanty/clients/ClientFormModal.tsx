@@ -15,11 +15,13 @@ interface Props {
   onSubmit: (data: ClientInput) => boolean | Promise<boolean>;
 }
 
+// Solo monta el formulario mientras el modal está abierto.
 export function ClientFormModal(props: Props) {
   if (!props.open) return null;
   return <ClientFormModalContent key={props.initial?.id ?? "new"} {...props} />;
 }
 
+// Formulario para crear o editar un cliente.
 function ClientFormModalContent({ initial, onClose, onSubmit }: Props) {
   const remoteClientsError = useClientsStore((s) => s.remoteClientsError);
   const [name, setName] = useState(initial?.name ?? "");

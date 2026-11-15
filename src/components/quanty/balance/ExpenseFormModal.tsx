@@ -24,11 +24,13 @@ function toDateInput(ts: number) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// Solo monta el formulario mientras el modal está abierto.
 export function ExpenseFormModal(props: Props) {
   if (!props.open) return null;
   return <ExpenseFormModalContent key={props.initial?.id ?? "new"} {...props} />;
 }
 
+// Formulario para crear o editar un gasto.
 function ExpenseFormModalContent({ initial, onClose, onSubmit }: Props) {
   const remoteExpensesError = useExpensesStore((s) => s.remoteExpensesError);
   const [concept, setConcept] = useState(initial?.concept ?? "");

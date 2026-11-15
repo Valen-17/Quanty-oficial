@@ -14,6 +14,7 @@ import { selectFinanceSeries } from "@/stores/selectors";
 import { useFmtMoney } from "@/hooks/useFmtCurrency";
 import { useSettingsStore } from "@/stores/settingsStore";
 
+// Gráfico de ingresos y gastos de los últimos meses.
 export function RevenueChart() {
   const quotes = useQuotesStore((s) => s.quotes);
   const expenses = useExpensesStore((s) => s.expenses);

@@ -11,6 +11,7 @@ import {
 import { ProductImage } from "@/components/quanty/inventory/ProductImage";
 import { cn } from "@/lib/utils";
 
+// Lista de productos agotados o con pocas unidades.
 export function LowStockPanel() {
   const products = useInventoryStore((s) => s.products);
   const items = useMemo(() => {

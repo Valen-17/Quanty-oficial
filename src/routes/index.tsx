@@ -46,6 +46,7 @@ export const Route = createFileRoute("/")({
   component: DashboardPage,
 });
 
+// Página principal con el resumen del negocio.
 function DashboardPage() {
   const fmtMoney = useFmtMoney();
   const inventoryValue = useInventoryStore(selectInventoryValue);

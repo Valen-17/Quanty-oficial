@@ -1,3 +1,5 @@
+// Esquemas Zod y tipos de las entidades del negocio.
+
 import { z } from "zod";
 import { idSchema, timestampSchema } from "./common";
 
@@ -73,6 +75,7 @@ export type QuoteItem = z.infer<typeof quoteItemSchema>;
 export type Quote = z.infer<typeof quoteSchema>;
 export type QuoteInput = z.infer<typeof quoteInputSchema>;
 
+// Asegura el nombre y el precio congelados de cada ítem.
 export function normalizeQuoteInputItems(items: QuoteInput["items"]): QuoteItem[] {
   return items.map((item) => {
     const productNameSnapshot = item.productNameSnapshot ?? item.name;

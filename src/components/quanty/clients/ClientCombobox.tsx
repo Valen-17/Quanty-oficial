@@ -11,6 +11,7 @@ interface Props {
   error?: boolean;
 }
 
+// Selector de clientes con búsqueda.
 export function ClientCombobox({ value, onChange, onSelectClient, onCreateNew, error }: Props) {
   const clients = useClientsStore((s) => s.clients);
   const [open, setOpen] = useState(false);

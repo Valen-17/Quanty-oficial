@@ -26,6 +26,7 @@ function toDateInput(ts: number) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// Solo monta el formulario mientras el modal está abierto.
 export function EventFormModal(props: Props) {
   if (!props.open) return null;
   return (
@@ -33,6 +34,7 @@ export function EventFormModal(props: Props) {
   );
 }
 
+// Formulario para crear o editar un compromiso.
 function EventFormModalContent({ initial, defaultDate, onClose, onSubmit }: Props) {
   const remoteAgendaError = useAgendaStore((s) => s.remoteAgendaError);
   const [title, setTitle] = useState(initial?.title ?? "");

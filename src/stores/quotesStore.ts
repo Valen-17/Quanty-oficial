@@ -1,3 +1,5 @@
+// Estado de las cotizaciones: caché local y sincronización con Supabase.
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nowTs } from "@/domain/common";
@@ -36,6 +38,7 @@ export const quoteInputSchema = domainQuoteInputSchema;
 export type QuoteInput = DomainQuoteInput;
 export type Quote = DomainQuote;
 
+// Calcula subtotal, mano de obra y total de una cotización.
 export function calcTotals(items: QuoteItem[], laborWorkers = 0, laborHours = 0, laborRate = 0) {
   const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
   const laborEmployeeAmount = Math.round(laborWorkers * laborHours * laborRate);
@@ -43,6 +46,7 @@ export function calcTotals(items: QuoteItem[], laborWorkers = 0, laborHours = 0,
   return { subtotal, laborEmployeeAmount, total };
 }
 
+// Halla el folio más alto para no repetir números.
 function maxCounterFromFolios(quotes: Quote[], current: number): number {
   let m = current;
   for (const q of quotes) {
@@ -93,6 +97,7 @@ export const useQuotesStore = create<QuotesState>()(
         set({ quotes: merged, counter, remoteQuotesError: null });
         return true;
       },
+      // Crea la cotización; si el folio ya existe, prueba con el siguiente.
       createQuoteOnRemote: async (data) => {
         const normalizedItems = normalizeQuoteInputItems(data.items);
         const totals = calcTotals(
@@ -179,6 +184,7 @@ export const useQuotesStore = create<QuotesState>()(
               : q,
           ),
         })),
+      // Lista los productos que no tienen stock suficiente.
       getApprovalIssues: (id) => {
         const quote = get().quotes.find((q) => q.id === id);
         if (!quote) return [];
@@ -198,6 +204,7 @@ export const useQuotesStore = create<QuotesState>()(
           })
           .filter(Boolean) as ApprovalIssue[];
       },
+      // Aprobación local: descuenta el stock de cada ítem.
       approveQuote: (id) => {
         const quote = get().quotes.find((q) => q.id === id);
         if (!quote) return { ok: false, error: "Cotización no encontrada" };

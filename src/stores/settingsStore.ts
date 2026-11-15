@@ -1,3 +1,5 @@
+// Perfil, preferencias y tasa de cambio guardados en el navegador.
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { fetchCopRate } from "@/lib/exchangeRate";
 import { useSettingsStore } from "@/stores/settingsStore";
 
+// Actualiza la tasa de cambio cuando cambia la moneda.
 export function useExchangeRateSync() {
   const currency = useSettingsStore((s) => s.profile.currency);
   const setExchangeRate = useSettingsStore((s) => s.setExchangeRate);

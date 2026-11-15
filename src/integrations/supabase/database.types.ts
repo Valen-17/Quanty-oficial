@@ -51,6 +51,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      api_keys: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          key_prefix: string;
+          key_hash: string;
+          created_at: string;
+          last_used_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name?: string;
+          key_prefix: string;
+          key_hash: string;
+          created_at?: string;
+          last_used_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          key_prefix?: string;
+          key_hash?: string;
+          created_at?: string;
+          last_used_at?: string | null;
+        };
+        Relationships: [];
+      };
       clients: {
         Row: {
           id: string;
@@ -63,6 +93,8 @@ export type Database = {
           created_at: string;
           updated_at: string;
           deleted_at: string | null;
+          external_source: string | null;
+          external_id: string | null;
         };
         Insert: {
           id?: string;
@@ -75,6 +107,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          external_source?: string | null;
+          external_id?: string | null;
         };
         Update: {
           id?: string;
@@ -87,6 +121,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          external_source?: string | null;
+          external_id?: string | null;
         };
         Relationships: [];
       };
@@ -103,6 +139,8 @@ export type Database = {
           created_at: string;
           updated_at: string;
           deleted_at: string | null;
+          external_source: string | null;
+          external_id: string | null;
         };
         Insert: {
           id?: string;
@@ -116,6 +154,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          external_source?: string | null;
+          external_id?: string | null;
         };
         Update: {
           id?: string;
@@ -129,6 +169,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          external_source?: string | null;
+          external_id?: string | null;
         };
         Relationships: [];
       };

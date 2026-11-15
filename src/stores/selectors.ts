@@ -1,10 +1,14 @@
+// Cálculos derivados para el dashboard y el balance.
+
 import type { Expense } from "@/stores/expensesStore";
 import type { Quote, QuoteStatus } from "@/stores/quotesStore";
 
+// Suma los totales de las cotizaciones aprobadas.
 export function selectApprovedIncome(quotes: Quote[]) {
   return quotes.filter((q) => q.status === "aprobada").reduce((sum, q) => sum + q.total, 0);
 }
 
+// Cuenta las cotizaciones de cada estado.
 export function selectQuoteCountByStatus(quotes: Quote[]) {
   const byStatus: Record<QuoteStatus, number> = {
     borrador: 0,
@@ -16,10 +20,12 @@ export function selectQuoteCountByStatus(quotes: Quote[]) {
   return byStatus;
 }
 
+// Cuenta borradores y enviadas.
 export function selectPendingQuotesCount(quotes: Quote[]) {
   return quotes.filter((q) => q.status === "borrador" || q.status === "enviada").length;
 }
 
+// Suma los gastos fijos, variables y el total.
 export function selectExpenseTotals(expenses: Expense[]) {
   const fixed = expenses.filter((e) => e.type === "fijo").reduce((sum, e) => sum + e.amount, 0);
   const variable = expenses
@@ -28,6 +34,7 @@ export function selectExpenseTotals(expenses: Expense[]) {
   return { fixed, variable, total: fixed + variable };
 }
 
+// Resumen de ingresos, gastos, utilidad y margen.
 export function selectFinancialSummary(quotes: Quote[], expenses: Expense[]) {
   const income = selectApprovedIncome(quotes);
   const expenseTotals = selectExpenseTotals(expenses);
@@ -41,6 +48,7 @@ function monthKey(ts: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Agrupa ingresos y gastos por mes para el gráfico.
 export function selectFinanceSeries(quotes: Quote[], expenses: Expense[], monthsBack = 9) {
   const now = new Date();
   const keys: string[] = [];

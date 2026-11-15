@@ -7,6 +7,7 @@ export function nowTs() {
   return Date.now();
 }
 
+// Id local para registros creados sin conexión.
 export function createEntityId(prefix: string) {
   return `${prefix}-${Date.now()}`;
 }

@@ -25,6 +25,7 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+// Solo permite redirigir a rutas internas de la app.
 function safeRedirectPath(value: unknown): string {
   if (typeof value !== "string") return "/";
   if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return "/";
@@ -48,6 +49,7 @@ const signupSchema = loginSchema.extend({
   employeeCount: z.number().int().min(0).max(9999).default(0),
 });
 
+// Página para iniciar sesión o crear una cuenta.
 function AuthPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();

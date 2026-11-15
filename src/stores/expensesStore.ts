@@ -1,3 +1,5 @@
+// Estado de los gastos: caché local y sincronización con Supabase.
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createEntityId } from "@/domain/common";
@@ -46,6 +48,7 @@ export const useExpensesStore = create<ExpensesState>()(
       expenses: [],
       remoteExpensesError: null,
       clearRemoteExpensesError: () => set({ remoteExpensesError: null }),
+      // Trae los gastos remotos y conserva los que solo existen en local.
       syncExpensesFromRemote: async () => {
         const res = await safeGetExpenses();
         if (!res.ok) {
