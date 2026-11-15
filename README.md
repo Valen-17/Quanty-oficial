@@ -1,6 +1,6 @@
 # Quanty - Aplicación Oficial
 
-Bienvenidas al repositorio central de **Quanty**. Esta es la aplicación oficial y de producción de nuestra plataforma de gestión diseñada especialmente para microempresas, pequeñas empresas y contratistas independientes.
+Bienvenid@s al repositorio central de **Quanty**. Esta es la aplicación oficial y de producción de nuestra plataforma de gestión diseñada especialmente para microempresas, pequeñas empresas y contratistas independientes.
 
 El núcleo de esta aplicación ha sido desarrollado implementando arquitecturas robustas y tipado estricto, consolidando los conocimientos de nuestro grupo de estudio **SoftGirls** en Ingeniería de Software 2 y Herramientas de Programación III.
 
@@ -9,7 +9,6 @@ El núcleo de esta aplicación ha sido desarrollado implementando arquitecturas 
 ## Integrantes
 
 - Isabella Aristizabal Díaz
-- Valentina Alejandra Pérez Cardona
 - Daniela Montoya Quintero
 
 ## Descripción del dominio
