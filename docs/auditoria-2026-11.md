@@ -87,13 +87,13 @@ Principio: ningún cambio debe requerir una acción externa (aplicar migraciones
 6. **Formularios**: los modales se montan al abrirse en vez de reiniciarse con efectos (D5).
 7. **Duplicación y rendimiento**: helpers compartidos de repositorio con sesión local (C3, P1), notificación de correo centralizada (C4), PDF cargado bajo demanda (P2), gráfico con moneda del usuario (D9), migraciones de persist correctas (D8).
 8. **Código muerto y estilo**: quitar funciones y exportaciones sin uso, comentarios y emojis (C6, C7).
-9. **Base de datos**: migración nueva (sin aplicar) que revoca `EXECUTE` a `anon`, reescribe las políticas con `(select auth.uid())` y crea los índices faltantes (S5, P3).
+9. **Base de datos**: migración `20261115150151` (aplicada el 15-11-2026) que revoca `EXECUTE` a `anon`, reescribe las políticas con `(select auth.uid())` y crea los índices faltantes (S5, P3).
 
 ### Requiere decisión o acción tuya
 
 - Rotar `RESEND_API_KEY` en Resend: ya está en el historial de git.
 - Hecho: `.env` dejó de versionarse (sigue en el historial, por eso hay que rotar la clave).
-- Aplicar la migración nueva y desplegar la función `send-quote-email`.
+- Hecho: migración aplicada (avisos de seguridad de 15 a 2) y `send-quote-email` v6 desplegada; responde 401 sin sesión.
 - Hecho: se borraron los 46 componentes de `src/components/ui` sin uso y los 36 paquetes que solo ellos usaban (las dependencias pasaron de 57 a 21). Siguen sin uso `@tanstack/react-query` y `date-fns`, y los archivos `PageStub`, `use-mobile`, `client.server.ts`, `auth-middleware.ts` e `integrations/supabase/types.ts`.
 - Activar protección de contraseñas filtradas en Supabase Auth.
 - Pendientes de producto: almacenamiento de imágenes en Storage (D12), dominio verificado en Resend (C10), y si los trabajadores asignados a cotizaciones aprobadas deberían liberarse.
