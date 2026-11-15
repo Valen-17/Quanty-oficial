@@ -26,7 +26,7 @@ Quanty solo guarda el hash SHA-256 de la clave. Cada clave pertenece a un usuari
 
 ```http
 GET /functions/v1/catalog-import
-x-api-key: qk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+x-api-key: qk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 Respuesta `200`:
@@ -39,7 +39,7 @@ Respuesta `200`:
 
 ```http
 POST /functions/v1/catalog-import
-x-api-key: qk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+x-api-key: qk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Content-Type: application/json
 ```
 
@@ -137,7 +137,7 @@ Las imágenes de Bruma son rutas relativas (`assets/…`). Antes de enviarlas ha
 
 ```bash
 curl -X POST "https://dnhpjwyaotdyhpialqlk.supabase.co/functions/v1/catalog-import" \
-  -H "x-api-key: qk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "x-api-key: qk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{"source":"bruma-cafe","productos":[{"id":1,"nombre":"Sierra Dulce","precio":42000,"cantidad":12,"categoria":"Grano"}]}'
 ```
