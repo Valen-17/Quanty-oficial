@@ -1,3 +1,4 @@
+// Une los datos remotos con los que solo existen en local.
 export function mergeRemoteWithLocalLegacy<T extends { id: string }>(
   remote: T[],
   current: T[],

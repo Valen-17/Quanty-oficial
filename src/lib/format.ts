@@ -5,6 +5,7 @@ const CURRENCY_LOCALE: Record<string, string> = {
   EUR: "de-DE",
 };
 
+// Formateador de moneda según la divisa del usuario.
 export function makeFmtCurrency(currency: string): Intl.NumberFormat {
   const locale = CURRENCY_LOCALE[currency] ?? "es-CO";
   const cur = CURRENCY_LOCALE[currency] ? currency : "COP";
@@ -15,6 +16,7 @@ export function makeFmtCurrency(currency: string): Intl.NumberFormat {
   });
 }
 
+// Formato corto de fecha en español.
 export const fmtDate = new Intl.DateTimeFormat("es-CO", {
   day: "2-digit",
   month: "short",

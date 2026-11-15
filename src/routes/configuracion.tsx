@@ -34,6 +34,7 @@ export const Route = createFileRoute("/configuracion")({
   component: ConfigPage,
 });
 
+// Página de perfil, preferencias e integraciones.
 function ConfigPage() {
   const profile = useSettingsStore((s) => s.profile);
   const preferences = useSettingsStore((s) => s.preferences);

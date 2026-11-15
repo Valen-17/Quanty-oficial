@@ -59,6 +59,7 @@ function startOfDay(ts: number) {
   return d.getTime();
 }
 
+// Arma las semanas del mes para el calendario.
 function buildMonthGrid(year: number, month: number) {
   const first = new Date(year, month, 1);
   const startWeekday = first.getDay();
@@ -80,6 +81,7 @@ function buildMonthGrid(year: number, month: number) {
   return days;
 }
 
+// Página de agenda con calendario y lista de compromisos.
 function AgendaPage() {
   const events = useAgendaStore((s) => s.events);
   const createEvent = useAgendaStore((s) => s.createEvent);

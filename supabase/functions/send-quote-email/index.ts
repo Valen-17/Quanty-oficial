@@ -1,3 +1,5 @@
+// Función de Supabase que envía por Resend el correo de una cotización.
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const CORS = {
@@ -12,6 +14,7 @@ type EmailItem = { name: string; quantity: number; unitPrice: number };
 const MAX_ITEMS = 200;
 const EMAIL_RE = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
 
+// Escapa el texto del usuario antes de ponerlo en el HTML.
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -40,6 +43,7 @@ function jsonResponse(body: unknown, status: number): Response {
   });
 }
 
+// Verifica la sesión del usuario con Supabase Auth.
 async function isAuthenticated(req: Request): Promise<boolean> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");

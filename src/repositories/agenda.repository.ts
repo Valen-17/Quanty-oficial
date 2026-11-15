@@ -1,3 +1,5 @@
+// Acceso a la tabla de compromisos de la agenda en Supabase.
+
 import {
   agendaEventSchema,
   eventInputSchema,
@@ -36,6 +38,7 @@ function startOfDayLocal(ts: number): number {
   return d.getTime();
 }
 
+// Une la fecha y la hora del formulario en una sola fecha ISO.
 export function eventInputToScheduledAtIso(input: EventInput): string {
   const [h, m] = input.time.split(":").map((x) => parseInt(x, 10));
   const base = new Date(input.date);
@@ -43,6 +46,7 @@ export function eventInputToScheduledAtIso(input: EventInput): string {
   return base.toISOString();
 }
 
+// Separa la fecha ISO en día y hora para el formulario.
 function scheduledAtIsoToDateAndTime(iso: string): { date: number; time: string } {
   const d = new Date(iso);
   const date = startOfDayLocal(d.getTime());
@@ -51,6 +55,7 @@ function scheduledAtIsoToDateAndTime(iso: string): { date: number; time: string 
   return { date, time: `${hh}:${mm}` };
 }
 
+// Pasa una fila de la base de datos al modelo de la app.
 export function agendaRowToDomain(row: AgendaEventRow): AgendaEvent {
   const { date, time } = scheduledAtIsoToDateAndTime(row.scheduled_at);
   const statusParsed = eventStatusSchema.safeParse(row.status);
@@ -98,6 +103,7 @@ function quoteIdForInsert(e: Pick<AgendaEvent, "quoteId">): string | null {
   return e.quoteId && isRemoteQuoteId(e.quoteId) ? e.quoteId : null;
 }
 
+// Lista los compromisos activos del usuario.
 export async function getAgendaEvents(): Promise<AgendaRepoResult<AgendaEvent[]>> {
   const auth = await requireAuthUserId("la agenda remota");
   if (!auth.ok) return auth;
@@ -127,6 +133,7 @@ export async function getAgendaEvents(): Promise<AgendaRepoResult<AgendaEvent[]>
   return { ok: true, data: out };
 }
 
+// Valida y crea un compromiso.
 export async function createAgendaEvent(input: EventInput): Promise<AgendaRepoResult<AgendaEvent>> {
   const parsed = eventInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -171,6 +178,7 @@ export async function createAgendaEvent(input: EventInput): Promise<AgendaRepoRe
   return agendaRowToDomainSafe(data as AgendaEventRow);
 }
 
+// Valida y actualiza un compromiso existente.
 export async function updateAgendaEvent(
   event: AgendaEvent,
 ): Promise<AgendaRepoResult<AgendaEvent>> {
@@ -229,6 +237,7 @@ export async function updateAgendaEvent(
   return agendaRowToDomainSafe(data as AgendaEventRow);
 }
 
+// Archiva el compromiso marcando la fecha de borrado.
 export async function softDeleteAgendaEvent(id: string): Promise<AgendaDeleteResult> {
   if (!isRemoteAgendaEventId(id)) {
     return { ok: false, error: "Este evento solo existe en local (sin UUID remoto)." };
@@ -256,6 +265,7 @@ export async function softDeleteAgendaEvent(id: string): Promise<AgendaDeleteRes
   return { ok: true };
 }
 
+// Versiones seguras: capturan errores inesperados y devuelven un resultado.
 export async function safeGetAgendaEvents(): Promise<AgendaRepoResult<AgendaEvent[]>> {
   try {
     return await getAgendaEvents();

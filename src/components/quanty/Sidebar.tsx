@@ -44,6 +44,7 @@ interface SidebarNavProps {
   onNavigate?: () => void;
 }
 
+// Enlaces de navegación con la página activa resaltada.
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const { pathname } = useLocation();
 
@@ -93,6 +94,7 @@ export function SidebarFooter() {
   );
 }
 
+// Menú lateral para escritorio.
 export function DesktopSidebar() {
   return (
     <aside
@@ -113,6 +115,7 @@ interface MobileSidebarProps {
   onClose: () => void;
 }
 
+// Menú desplegable para celular.
 export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
   return (
     <>

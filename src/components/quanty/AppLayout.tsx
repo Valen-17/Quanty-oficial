@@ -14,6 +14,7 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
+// Estructura de las páginas privadas: menú, cabecera y contenido.
 export function AppLayout({ title, subtitle, actions, children }: AppLayoutProps) {
   return (
     <RequireAuth>

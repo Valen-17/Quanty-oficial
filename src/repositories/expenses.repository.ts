@@ -1,3 +1,5 @@
+// Acceso a la tabla de gastos en Supabase.
+
 import {
   expenseInputSchema,
   expenseSchema,
@@ -34,6 +36,7 @@ function parseAmountFromRow(value: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
+// Pasa una fila de la base de datos al modelo de la app.
 export function expenseRowToDomain(row: ExpenseRow): Expense {
   const amount = parseAmountFromRow(row.amount);
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -88,6 +91,7 @@ function expenseDateIsoFromMs(ms: number): string {
   return d.toISOString();
 }
 
+// Lista los gastos activos del usuario, del más reciente al más antiguo.
 export async function getExpenses(): Promise<ExpensesRepoResult<Expense[]>> {
   const auth = await requireAuthUserId("gastos remotos");
   if (!auth.ok) return auth;
@@ -119,6 +123,7 @@ export async function getExpenses(): Promise<ExpensesRepoResult<Expense[]>> {
   return { ok: true, data: out };
 }
 
+// Valida y crea un gasto.
 export async function createExpense(input: ExpenseInput): Promise<ExpensesRepoResult<Expense>> {
   const parsed = expenseInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -157,6 +162,7 @@ export async function createExpense(input: ExpenseInput): Promise<ExpensesRepoRe
   return expenseRowToDomainSafe(data as ExpenseRow);
 }
 
+// Valida y actualiza un gasto existente.
 export async function updateExpense(
   id: string,
   input: ExpenseInput,
@@ -203,6 +209,7 @@ export async function updateExpense(
   return expenseRowToDomainSafe(data as ExpenseRow);
 }
 
+// Archiva el gasto marcando la fecha de borrado.
 export async function softDeleteExpense(id: string): Promise<ExpensesDeleteResult> {
   if (!isRemoteExpenseId(id)) {
     return { ok: false, error: "Este gasto solo existe en local (sin UUID remoto)." };
@@ -230,6 +237,7 @@ export async function softDeleteExpense(id: string): Promise<ExpensesDeleteResul
   return { ok: true };
 }
 
+// Versiones seguras: capturan errores inesperados y devuelven un resultado.
 export async function safeGetExpenses(): Promise<ExpensesRepoResult<Expense[]>> {
   try {
     return await getExpenses();

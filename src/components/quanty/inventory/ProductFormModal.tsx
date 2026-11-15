@@ -43,6 +43,7 @@ function toForm(p: Product): FormState {
 const MAX_IMAGE_BYTES = 1_500_000;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+// Reduce la imagen antes de guardarla.
 async function compressImage(file: File, maxDim = 800, quality = 0.82): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -68,11 +69,13 @@ async function compressImage(file: File, maxDim = 800, quality = 0.82): Promise<
   return canvas.toDataURL("image/jpeg", quality);
 }
 
+// Solo monta el formulario mientras el modal está abierto.
 export function ProductFormModal(props: Props) {
   if (!props.open) return null;
   return <ProductFormModalContent key={props.initial?.id ?? "new"} {...props} />;
 }
 
+// Formulario para crear o editar un producto.
 function ProductFormModalContent({ initial, onClose, onSubmit }: Props) {
   const remoteProductsError = useInventoryStore((s) => s.remoteProductsError);
   const [form, setForm] = useState<FormState>(() => (initial ? toForm(initial) : empty));

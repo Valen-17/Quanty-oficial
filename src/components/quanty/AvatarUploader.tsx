@@ -19,6 +19,7 @@ interface AvatarUploaderProps {
   showHint?: boolean;
 }
 
+// Sube la foto de perfil a Supabase Storage.
 export function AvatarUploader({ size = 96, showHint = true }: AvatarUploaderProps) {
   const { user } = useAuth();
   const { profile, displayName, updateProfile } = useProfile();

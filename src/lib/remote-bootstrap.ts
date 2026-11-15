@@ -13,6 +13,7 @@ import {
 import { useAgendaStore } from "@/stores/agendaStore";
 import { useQuotesStore } from "@/stores/quotesStore";
 
+// Trae el perfil de la nube a los ajustes locales.
 async function syncProfileIntoSettingsStore(userId: string): Promise<void> {
   const { data } = await supabase
     .from("profiles")
@@ -48,6 +49,7 @@ function readModuleErrorAfterFailedSync(key: RemoteBootstrapModule): string {
   }
 }
 
+// Evita aplicar datos si el usuario cambió durante la carga.
 async function assertStillSameUser(expectedUserId: string, signal: AbortSignal): Promise<boolean> {
   if (signal.aborted) return false;
   const userId = await getSessionUserId();
@@ -55,6 +57,7 @@ async function assertStillSameUser(expectedUserId: string, signal: AbortSignal):
   return userId === expectedUserId;
 }
 
+// Al iniciar sesión: carga lo local y sincroniza todos los módulos en paralelo.
 export async function rehydrateThenBootstrapRemoteModules(
   expectedUserId: string,
   signal: AbortSignal,

@@ -1,3 +1,5 @@
+// Función de Supabase que importa productos y contactos usando una clave de API.
+
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 const CORS = {
@@ -46,6 +48,7 @@ function jsonResponse(body: unknown, status: number): Response {
   });
 }
 
+// Hash de la clave para buscarla sin guardarla en texto plano.
 async function sha256Hex(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest))
@@ -73,6 +76,7 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
+// Valida un producto y lo convierte al formato de Quanty.
 function parseProduct(input: unknown): Parsed<ProductRecord> {
   const raw = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   const externalId = readExternalId(raw);
@@ -103,6 +107,7 @@ function parseProduct(input: unknown): Parsed<ProductRecord> {
   return { ok: true, value: { externalId, name, description, price, units, imageUrl } };
 }
 
+// Valida un contacto y lo convierte al formato de Quanty.
 function parseContact(input: unknown): Parsed<ContactRecord> {
   const raw = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   const externalId = readExternalId(raw);
@@ -125,6 +130,7 @@ function parseContact(input: unknown): Parsed<ContactRecord> {
   return { ok: true, value: { externalId, name, email, phone, company, notes } };
 }
 
+// Separa válidos e inválidos y descarta ids repetidos.
 function parseItems<T extends { externalId: string }>(
   items: unknown[],
   parse: (input: unknown) => Parsed<T>,
@@ -175,6 +181,7 @@ async function runInBatches<T>(items: T[], worker: (item: T) => Promise<void>): 
   }
 }
 
+// Actualiza lo que ya existe y crea lo nuevo.
 async function upsertRecords<T extends { externalId: string }>(
   admin: SupabaseClient,
   table: "products" | "clients",
@@ -227,6 +234,7 @@ function emptySummary(received: number, skipped: Skipped[]): ImportSummary {
   return { received, created: 0, updated: 0, skipped: [...skipped] };
 }
 
+// Punto de entrada: valida la clave, el cuerpo y procesa la importación.
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "GET" && req.method !== "POST") {

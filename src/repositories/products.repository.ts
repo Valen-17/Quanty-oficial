@@ -1,3 +1,5 @@
+// Acceso a la tabla de productos en Supabase.
+
 import { productInputSchema, type Product, type ProductInput } from "@/domain/entities";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -23,6 +25,7 @@ function parsePriceFromRow(value: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
+// Pasa una fila de la base de datos al modelo de la app.
 export function productRowToDomain(row: ProductRow): Product {
   const price = parsePriceFromRow(row.price);
   if (!Number.isFinite(price) || price <= 0) {
@@ -51,6 +54,7 @@ function productRowToDomainSafe(row: ProductRow): ProductsRepoResult<Product> {
   }
 }
 
+// Lista los productos activos del usuario.
 export async function getProducts(): Promise<ProductsRepoResult<Product[]>> {
   const auth = await requireAuthUserId("productos remotos");
   if (!auth.ok) return auth;
@@ -82,6 +86,7 @@ export async function getProducts(): Promise<ProductsRepoResult<Product[]>> {
   return { ok: true, data: out };
 }
 
+// Valida y crea un producto.
 export async function createProduct(input: ProductInput): Promise<ProductsRepoResult<Product>> {
   const parsed = productInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -121,6 +126,7 @@ export async function createProduct(input: ProductInput): Promise<ProductsRepoRe
   return productRowToDomainSafe(data as ProductRow);
 }
 
+// Valida y actualiza un producto existente.
 export async function updateProduct(
   id: string,
   input: ProductInput,
@@ -171,6 +177,7 @@ export async function updateProduct(
   return productRowToDomainSafe(data as ProductRow);
 }
 
+// Cambia solo el stock de un producto.
 export async function updateProductUnits(
   id: string,
   units: number,
@@ -212,6 +219,7 @@ export async function updateProductUnits(
   return productRowToDomainSafe(data as ProductRow);
 }
 
+// Archiva el producto marcando la fecha de borrado.
 export async function softDeleteProduct(id: string): Promise<ProductsDeleteResult> {
   if (!isRemoteProductId(id)) {
     return { ok: false, error: "Este producto solo existe en local (sin UUID remoto)." };
@@ -239,6 +247,7 @@ export async function softDeleteProduct(id: string): Promise<ProductsDeleteResul
   return { ok: true };
 }
 
+// Versiones seguras: capturan errores inesperados y devuelven un resultado.
 export async function safeGetProducts(): Promise<ProductsRepoResult<Product[]>> {
   try {
     return await getProducts();

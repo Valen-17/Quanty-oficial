@@ -22,11 +22,13 @@ interface Props {
   onCreated: (data: QuoteInput) => boolean | Promise<boolean>;
 }
 
+// Solo monta el formulario mientras el modal está abierto.
 export function QuoteFormModal(props: Props) {
   if (!props.open) return null;
   return <QuoteFormModalContent {...props} />;
 }
 
+// Formulario para crear una cotización con insumos y mano de obra.
 function QuoteFormModalContent({ onClose, onCreated }: Props) {
   const fmtMoney = useFmtMoney();
   const products = useInventoryStore((s) => s.products);

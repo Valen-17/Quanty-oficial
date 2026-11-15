@@ -16,6 +16,7 @@ const inputClass =
 
 type CopyTarget = "endpoint" | "secret" | null;
 
+// Panel para crear, listar y revocar claves de integración.
 export function ApiKeysPanel() {
   const syncProducts = useInventoryStore((s) => s.syncProductsFromRemote);
   const syncClients = useClientsStore((s) => s.syncClientsFromRemote);

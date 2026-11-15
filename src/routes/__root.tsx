@@ -80,6 +80,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Proveedores globales: tema, tasa de cambio, sesión y perfil.
 function RootComponent() {
   useTheme();
   useExchangeRateSync();

@@ -19,6 +19,7 @@ interface Props {
   onClose: () => void;
 }
 
+// Detalle de la cotización con acciones de estado, PDF y correo.
 export function QuoteDetailModal({ quote, onClose }: Props) {
   const fmtMoney = useFmtMoney();
   const currency = useSettingsStore((s) => s.profile.currency);

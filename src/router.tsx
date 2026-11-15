@@ -54,6 +54,7 @@ function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => vo
   );
 }
 
+// Crea el router con el árbol de rutas generado.
 export const getRouter = () => {
   const router = createRouter({
     routeTree,

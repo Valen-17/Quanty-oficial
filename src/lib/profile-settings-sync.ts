@@ -13,6 +13,7 @@ export interface CloudProfileFields {
 const DEFAULT_CLOUD_CURRENCY = "COP";
 const DEFAULT_CLOUD_LANGUAGE = "es";
 
+// Copia el perfil de la nube a los ajustes locales.
 export function mergeCloudProfileIntoSettings(row: CloudProfileFields): void {
   const settings = useSettingsStore.getState();
   const current = settings.profile;

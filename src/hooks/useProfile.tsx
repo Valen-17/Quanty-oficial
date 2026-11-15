@@ -51,6 +51,7 @@ const PROFILE_COLUMNS =
 
 const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
 
+// Lee el perfil y completa el nombre si está vacío.
 async function loadProfile(userId: string, email: string | undefined): Promise<ProfileRow | null> {
   const { data, error } = await supabase
     .from("profiles")
@@ -70,6 +71,7 @@ async function loadProfile(userId: string, email: string | undefined): Promise<P
   return updated ?? { ...data, full_name: derived };
 }
 
+// Comparte un solo perfil con toda la app.
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id ?? null;
@@ -127,6 +129,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
 }
 
+// Acceso al perfil desde cualquier componente.
 export function useProfile() {
   const ctx = useContext(ProfileContext);
   if (!ctx) throw new Error("useProfile must be used within ProfileProvider");

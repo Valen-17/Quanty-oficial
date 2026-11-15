@@ -43,6 +43,7 @@ export const Route = createFileRoute("/balance")({
 
 type Filter = "todos" | ExpenseType;
 
+// Página de ingresos, gastos y utilidad.
 function BalancePage() {
   const fmtMoney = useFmtMoney();
   const expenses = useExpensesStore((s) => s.expenses);

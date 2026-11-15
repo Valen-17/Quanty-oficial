@@ -1,3 +1,5 @@
+// Estado de la carga inicial de datos remotos.
+
 import { create } from "zustand";
 
 export type RemoteBootstrapModule = "clients" | "products" | "quotes" | "expenses" | "agenda";

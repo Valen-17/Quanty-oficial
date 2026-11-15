@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useSettingsStore } from "@/stores/settingsStore";
 
+// Aplica el tema claro, oscuro o el del sistema.
 export function useTheme() {
   const theme = useSettingsStore((s) => s.preferences.theme);
 

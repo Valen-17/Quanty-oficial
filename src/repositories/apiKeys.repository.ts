@@ -1,3 +1,5 @@
+// Claves de API para que apps externas importen datos a Quanty.
+
 import { supabase } from "@/integrations/supabase/client";
 import {
   formatSupabaseError,
@@ -39,12 +41,14 @@ function toBase64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+// Genera una clave aleatoria de 32 bytes.
 function generateSecret(): string {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   return SECRET_PREFIX + toBase64Url(bytes);
 }
 
+// Calcula el hash de la clave; en la base de datos solo se guarda el hash.
 async function sha256Hex(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest))
@@ -63,11 +67,13 @@ function rowToSummary(row: ApiKeyRow): ApiKeySummary {
   };
 }
 
+// URL del endpoint de importación.
 export function catalogImportEndpoint(): string {
   const base = String(import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/+$/, "");
   return `${base}/functions/v1/catalog-import`;
 }
 
+// Lista las claves del usuario sin exponer el hash.
 export async function listApiKeys(): Promise<RepoResult<ApiKeySummary[]>> {
   const auth = await requireAuthUserId(FEATURE_LABEL);
   if (!auth.ok) return auth;
@@ -86,6 +92,7 @@ export async function listApiKeys(): Promise<RepoResult<ApiKeySummary[]>> {
   return { ok: true, data: (data ?? []).map(rowToSummary) };
 }
 
+// Crea una clave y la devuelve una sola vez.
 export async function createApiKey(name: string): Promise<RepoResult<CreatedApiKey>> {
   const cleanName = name.trim();
   if (cleanName.length < 2 || cleanName.length > 60) {
@@ -118,6 +125,7 @@ export async function createApiKey(name: string): Promise<RepoResult<CreatedApiK
   return { ok: true, data: { summary: rowToSummary(data), secret } };
 }
 
+// Revoca una clave borrándola.
 export async function deleteApiKey(id: string): Promise<RepoDeleteResult> {
   const auth = await requireAuthUserId(FEATURE_LABEL);
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -133,6 +141,7 @@ export async function deleteApiKey(id: string): Promise<RepoDeleteResult> {
   return { ok: true };
 }
 
+// Versiones seguras: capturan errores inesperados y devuelven un resultado.
 export async function safeListApiKeys(): Promise<RepoResult<ApiKeySummary[]>> {
   try {
     return await listApiKeys();

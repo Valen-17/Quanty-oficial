@@ -10,6 +10,7 @@ const STATUS_LABEL: Record<string, string> = {
   rechazada: "Rechazada",
 };
 
+// Genera y descarga el PDF de una cotización.
 export function downloadQuotePdf(
   quote: Quote,
   currency = "COP",

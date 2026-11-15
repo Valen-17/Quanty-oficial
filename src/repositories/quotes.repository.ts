@@ -1,3 +1,5 @@
+// Acceso a las cotizaciones y sus líneas en Supabase.
+
 import { z } from "zod";
 import {
   normalizeQuoteInputItems,
@@ -47,6 +49,7 @@ function parseNumeric(value: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
+// Convierte una línea de la base de datos en un ítem de cotización.
 function lineRowToQuoteItem(row: QuoteLineItemRow): QuotesRepoResult<QuoteItem> {
   const unitPriceSnapshot = parseNumeric(row.unit_price_snapshot);
   const unitPriceRef = parseNumeric(row.unit_price);
@@ -74,6 +77,7 @@ function lineRowToQuoteItem(row: QuoteLineItemRow): QuotesRepoResult<QuoteItem> 
   return { ok: true, data: parsed.data };
 }
 
+// Arma la cotización con sus líneas y valida los montos.
 function joinedRowToQuote(
   row: QuoteRow & { quote_line_items?: QuoteLineItemRow[] | null },
 ): QuotesRepoResult<Quote> {
@@ -132,6 +136,7 @@ function joinedRowToQuote(
   return { ok: true, data: parsed.data };
 }
 
+// Prepara las líneas para insertarlas en la base de datos.
 function quoteItemsToLineInserts(
   quoteId: string,
   items: QuoteItem[],
@@ -158,6 +163,7 @@ function quoteItemsToLineInserts(
   }));
 }
 
+// Lista las cotizaciones activas con sus líneas.
 export async function getQuotes(): Promise<QuotesRepoResult<Quote[]>> {
   const auth = await requireAuthUserId("cotizaciones remotas");
   if (!auth.ok) return auth;
@@ -187,6 +193,7 @@ export async function getQuotes(): Promise<QuotesRepoResult<Quote[]>> {
   return { ok: true, data: out };
 }
 
+// Crea la cotización y luego sus líneas; si fallan, la archiva.
 export async function createQuote(
   params: CreateRemoteQuoteParams,
 ): Promise<QuotesRepoResult<Quote>> {
@@ -273,10 +280,12 @@ export async function createQuote(
   return joinedRowToQuote(rejoined as QuoteRow & { quote_line_items?: QuoteLineItemRow[] | null });
 }
 
+// Estados que se cambian a mano; aprobar se hace con el RPC del servidor.
 const editableStatusSchema = z.enum(["borrador", "enviada", "rechazada"]);
 
 export type EditableQuoteStatus = z.infer<typeof editableStatusSchema>;
 
+// Cambia solo el estado de la cotización.
 export async function updateQuoteStatus(
   id: string,
   status: EditableQuoteStatus,
@@ -324,6 +333,7 @@ export async function updateQuoteStatus(
   return fetchQuoteJoinedById(id);
 }
 
+// Lee una cotización completa por su id.
 async function fetchQuoteJoinedById(quoteId: string): Promise<QuotesRepoResult<Quote>> {
   const auth = await requireAuthUserId("cotizaciones remotas");
   if (!auth.ok) return auth;
@@ -348,6 +358,7 @@ async function fetchQuoteJoinedById(quoteId: string): Promise<QuotesRepoResult<Q
   return joinedRowToQuote(data as QuoteRow & { quote_line_items?: QuoteLineItemRow[] | null });
 }
 
+// Aprueba en el servidor y descuenta el stock en una sola transacción.
 export async function approveQuoteRemote(id: string): Promise<QuotesRepoResult<Quote>> {
   if (!isRemoteQuoteId(id)) {
     return {
@@ -372,6 +383,7 @@ export async function approveQuoteRemote(id: string): Promise<QuotesRepoResult<Q
   return fetchQuoteJoinedById(id);
 }
 
+// Versión segura de approveQuoteRemote.
 export async function safeApproveQuoteRemote(id: string): Promise<QuotesRepoResult<Quote>> {
   try {
     return await approveQuoteRemote(id);
@@ -380,6 +392,7 @@ export async function safeApproveQuoteRemote(id: string): Promise<QuotesRepoResu
   }
 }
 
+// Archiva la cotización marcando la fecha de borrado.
 export async function softDeleteQuote(id: string): Promise<QuotesDeleteResult> {
   if (!isRemoteQuoteId(id)) {
     return { ok: false, error: "Esta cotización solo existe en local (sin UUID remoto)." };
@@ -407,6 +420,7 @@ export async function softDeleteQuote(id: string): Promise<QuotesDeleteResult> {
   return { ok: true };
 }
 
+// Versiones seguras: capturan errores inesperados y devuelven un resultado.
 export async function safeGetQuotes(): Promise<QuotesRepoResult<Quote[]>> {
   try {
     return await getQuotes();

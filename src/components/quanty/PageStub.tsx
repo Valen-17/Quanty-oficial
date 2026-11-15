@@ -6,6 +6,7 @@ interface PageStubProps {
   description: string;
 }
 
+// Aviso para secciones que aún no existen.
 export function PageStub({ icon: Icon, title, description }: PageStubProps) {
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center">

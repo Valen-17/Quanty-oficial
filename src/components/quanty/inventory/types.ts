@@ -10,6 +10,7 @@ export type Product = DomainProduct;
 
 export type Availability = "agotado" | "pocas" | "disponible";
 
+// Estado del producto según sus unidades y el umbral.
 export function getAvailability(p: Pick<Product, "units" | "threshold">): Availability {
   if (p.units <= 0) return "agotado";
   if (p.units <= p.threshold) return "pocas";

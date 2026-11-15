@@ -1,3 +1,5 @@
+// Estado de los clientes: caché local y sincronización con Supabase.
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
@@ -40,6 +42,7 @@ export const useClientsStore = create<ClientsState>()(
       clients: [],
       remoteClientsError: null,
       clearRemoteClientsError: () => set({ remoteClientsError: null }),
+      // Trae los clientes remotos y conserva los que solo existen en local.
       syncClientsFromRemote: async () => {
         const res = await safeGetClients();
         if (!res.ok) {

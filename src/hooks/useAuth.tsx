@@ -15,6 +15,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// Guarda la sesión y sincroniza los datos al cambiar de usuario.
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Acceso a la sesión desde cualquier componente.
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");

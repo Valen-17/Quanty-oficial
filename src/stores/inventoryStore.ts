@@ -1,3 +1,5 @@
+// Estado del inventario: caché local y sincronización con Supabase.
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { inventoryPersistedSchema, type InventoryPersisted } from "@/domain/entities";
@@ -16,6 +18,7 @@ import {
 
 const MAX_UNITS = 999_999;
 
+// Cola por producto para guardar los cambios de stock en orden.
 const stockSyncQueue = new Map<string, Promise<void>>();
 
 function clampUnits(units: number): number {
@@ -41,6 +44,7 @@ export const useInventoryStore = create<InventoryState>()(
       products: [],
       remoteProductsError: null,
       clearRemoteProductsError: () => set({ remoteProductsError: null }),
+      // Trae los productos remotos y conserva los que solo existen en local.
       syncProductsFromRemote: async () => {
         const res = await safeGetProducts();
         if (!res.ok) {
@@ -101,6 +105,7 @@ export const useInventoryStore = create<InventoryState>()(
           ),
         })),
       deleteProduct: (id) => set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
+      // Cambia el stock al instante y luego lo guarda en Supabase.
       applyStockDelta: (id, delta) => {
         const current = get().products.find((p) => p.id === id);
         if (!current) return;
@@ -148,6 +153,7 @@ export const useInventoryStore = create<InventoryState>()(
   ),
 );
 
+// Valor total del inventario: precio por unidades.
 export const selectInventoryValue = (s: InventoryState) =>
   s.products.reduce((sum, p) => sum + p.price * p.units, 0);
 

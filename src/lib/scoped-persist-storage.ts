@@ -1,7 +1,10 @@
+// localStorage con claves separadas por usuario.
+
 import { createJSONStorage, type StateStorage } from "zustand/middleware";
 
 let scopedUserId: string | null = null;
 
+// Cambia el usuario dueño de las claves.
 export function setScopedPersistenceUserId(userId: string | null): void {
   scopedUserId = userId;
 }
