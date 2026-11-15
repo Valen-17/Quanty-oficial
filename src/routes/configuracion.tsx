@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { nameFromEmail } from "@/lib/names";
 import { AvatarUploader } from "@/components/quanty/AvatarUploader";
+import { ApiKeysPanel } from "@/components/quanty/ApiKeysPanel";
 
 export const Route = createFileRoute("/configuracion")({
   head: () => ({
@@ -365,6 +366,10 @@ function ConfigPage() {
             </button>
           </div>
         </section>
+      </div>
+
+      <div className="mt-6">
+        <ApiKeysPanel />
       </div>
 
       <div className="mt-8 flex items-center justify-center gap-2 text-xs text-muted-foreground">
