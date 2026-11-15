@@ -136,3 +136,20 @@ Autenticación, base de datos PostgreSQL con seguridad por filas (RLS), almacena
 ## Librerías
 
 React, TanStack Start y TanStack Router, Zustand, Zod, Tailwind CSS, lucide-react (íconos), Recharts (gráficos), jsPDF y jspdf-autotable (PDF), Supabase JS y Resend (envío de correos). Las versiones exactas están en `package.json`.
+
+## Uso de inteligencia artificial
+
+Hicimos una limpieza del código original de Quanty para dejarlo como debe ser: ordenado, seguro y fácil de mantener. Para esa limpieza nos apoyamos en herramientas de inteligencia artificial.
+
+**Para qué la usamos**
+
+- Auditar el código y detectar errores, código repetido y riesgos de seguridad. El resultado está en [docs/auditoria-2026-11.md](docs/auditoria-2026-11.md).
+- Corregir los errores de tipos y de lint, y unificar el código repetido de los repositorios.
+- Reforzar la seguridad de la función de correo y de las políticas de la base de datos.
+- Construir la integración con Bruma Café y las funciones de la tabla de Inventario (orden, paginación y CSV).
+
+**Cómo lo verificamos**
+
+- Cada cambio pasó `bun run typecheck`, `bun run lint` y `bun run build` sin errores.
+- Probamos la app en el navegador y el endpoint de importación con peticiones reales.
+- Contrastamos las soluciones con la documentación oficial citada en este README (MDN, Supabase y ExchangeRate-API).
