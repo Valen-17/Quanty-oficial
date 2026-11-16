@@ -267,7 +267,29 @@ Deno.serve(async (req) => {
       .update({ last_used_at: new Date().toISOString() })
       .eq("id", keyRow.id);
 
-    if (req.method === "GET") return jsonResponse({ ok: true }, 200);
+    // GET devuelve el stock actual en Quanty de los productos importados.
+    if (req.method === "GET") {
+      const source = new URL(req.url).searchParams.get("source")?.trim() || "bruma-cafe";
+      if (!SOURCE_RE.test(source)) {
+        return jsonResponse({ error: "source debe usar minúsculas, números o guiones" }, 400);
+      }
+      const { data, error } = await admin
+        .from("products")
+        .select("external_id, name, units, threshold, price, updated_at")
+        .eq("user_id", keyRow.user_id)
+        .eq("external_source", source)
+        .is("deleted_at", null);
+      if (error) throw new Error(`stock lookup: ${error.message}`);
+      const productos = (data ?? []).map((row) => ({
+        id: row.external_id,
+        nombre: row.name,
+        cantidad: row.units,
+        umbral: row.threshold,
+        precio: Number(row.price),
+        actualizado: row.updated_at,
+      }));
+      return jsonResponse({ ok: true, source, productos }, 200);
+    }
 
     const declaredLength = Number(req.headers.get("content-length") ?? "0");
     if (declaredLength > MAX_BODY_BYTES) {
