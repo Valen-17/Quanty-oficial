@@ -4,7 +4,7 @@ Bienvenid@s al repositorio central de **Quanty**. Esta es la aplicación oficial
 
 El núcleo de esta aplicación ha sido desarrollado implementando arquitecturas robustas y tipado estricto, consolidando los conocimientos de nuestro grupo de estudio **SoftGirls** en Ingeniería de Software 2 y Herramientas de Programación III.
 
-**Aplicación publicada:** https://quanty-oficial.vercel.app/
+**Aplicación publicada:** https://quanty-softgirls.vercel.app/
 
 ## Integrantes
 
