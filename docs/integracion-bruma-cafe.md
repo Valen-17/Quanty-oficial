@@ -22,18 +22,28 @@ Quanty solo guarda el hash SHA-256 de la clave. Cada clave pertenece a un usuari
 | CORS        | Abierto a cualquier origen (la autorización es la clave) |
 | Límites     | Cuerpo de máximo 1 MB y máximo 500 elementos por lista   |
 
-## Probar la clave
+## Consultar el stock (Quanty → Bruma Café)
+
+Con `GET` la tienda recibe el stock actual en Quanty de los productos que importó. Sirve también para probar la clave. El parámetro opcional `source` vale `bruma-cafe` por defecto.
 
 ```http
-GET /functions/v1/catalog-import
-x-api-key: qk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GET /functions/v1/catalog-import?source=bruma-cafe
+x-api-key: qk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-Respuesta `200`:
+Respuesta `200` (`id` es el mismo id que envió Bruma):
 
 ```json
-{ "ok": true }
+{
+  "ok": true,
+  "source": "bruma-cafe",
+  "productos": [
+    { "id": "1", "nombre": "Sierra Dulce", "cantidad": 9, "umbral": 5, "precio": 42000, "actualizado": "2026-11-16T15:00:00Z" }
+  ]
+}
 ```
+
+Si en Quanty se aprueba una cotización o se ajusta el stock, la próxima consulta devuelve la cantidad nueva.
 
 ## Importar
 
