@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+.claude
+.tanstack
+.output
+.vinxi
+dist
+node_modules
